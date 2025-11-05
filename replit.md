@@ -2,13 +2,14 @@
 
 ## Overview
 
-Food Rescue SG is a dual-purpose platform designed for Singapore students and consumers. It combines real-time school canteen queue monitoring with a food rescue marketplace that connects vendors with surplus food to consumers at discounted prices. The platform uses a mobile-first approach to provide instant access to queue status information and sustainable food purchasing options.
+Food Rescue SG is a dual-purpose platform designed for Singapore students and consumers. It combines real-time school canteen queue monitoring with a food rescue marketplace that connects vendors with surplus food to consumers at discounted prices. The platform is built with pure Node.js and EJS templates (NOT React) for server-side rendering.
 
 **Core Features:**
 - Real-time canteen queue monitoring with wait time estimates
 - Food rescue marketplace for surplus food listings
 - Vendor management and ratings system
-- Mobile-optimized interface for on-the-go access
+- Admin dashboard with full CRUD operations
+- Server-side rendered EJS templates for optimal performance
 
 ## User Preferences
 
@@ -129,3 +130,12 @@ Preferred communication style: Simple, everyday language.
 - **clsx** & **tailwind-merge** - Conditional class name management
 - **class-variance-authority** - Component variant system
 - **date-fns** - Date manipulation and formatting
+
+## Recent Changes
+
+**November 5, 2025**
+- Fixed WebSocket connectivity issue for Neon PostgreSQL database
+- Successfully installed `ws` package required for Neon serverless WebSocket connections
+- Configured `neonConfig.webSocketConstructor` to use ws module
+- Application now fully functional with PostgreSQL database persistence
+- Admin dashboard operational with all CRUD operations working

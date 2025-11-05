@@ -12,7 +12,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 
-// Configure WebSocket for Neon
+// Configure WebSocket for Neon in Node.js environment
 neonConfig.webSocketConstructor = ws;
 
 export interface IStorage {
