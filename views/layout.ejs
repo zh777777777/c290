@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#2D8659',
+              50: '#E8F5EF',
+              100: '#D1EBE0',
+              500: '#2D8659',
+              600: '#256F4A',
+              700: '#1D583B',
+            },
+            accent: {
+              DEFAULT: '#F59E0B',
+              100: '#FEF3C7',
+              500: '#F59E0B',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+            display: ['DM Sans', 'ui-sans-serif', 'system-ui'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'DM Sans', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <!-- Navigation -->
+  <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- Logo -->
+        <div class="flex items-center">
+          <a href="/" class="flex items-center gap-2">
+            <svg class="w-8 h-8 text-primary-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+            </svg>
+            <span class="text-xl font-bold text-gray-900">Food Rescue SG</span>
+          </a>
+        </div>
+
+        <!-- Desktop Navigation -->
+        <div class="hidden md:flex items-center gap-1">
+          <a href="/queue-monitor" 
+             class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'queue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+             data-testid="link-queue-monitor">
+            Queue Monitor
+          </a>
+          <a href="/food-rescue" 
+             class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'rescue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+             data-testid="link-food-rescue">
+            Food Rescue
+          </a>
+          <a href="/vendor-portal" 
+             class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'vendor' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+             data-testid="link-vendor-portal">
+            Vendor Portal
+          </a>
+        </div>
+
+        <!-- Mobile menu button -->
+        <button class="md:hidden p-2 rounded-lg hover:bg-gray-100" onclick="toggleMobileMenu()" data-testid="button-mobile-menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mobile Navigation -->
+      <div id="mobileMenu" class="hidden md:hidden pb-4">
+        <a href="/queue-monitor" 
+           class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'queue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+          Queue Monitor
+        </a>
+        <a href="/food-rescue" 
+           class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'rescue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+          Food Rescue
+        </a>
+        <a href="/vendor-portal" 
+           class="block px-4 py-2 rounded-lg text-sm font-medium <%= activePage === 'vendor' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+          Vendor Portal
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+    <%- body %>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-gray-300 mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div>
+          <h3 class="text-white font-semibold mb-4">Food Rescue SG</h3>
+          <p class="text-sm">Save Food. Save Money. Save Tomorrow.</p>
+          <p class="text-sm mt-2">Supporting Singapore's SG Green Plan 2030</p>
+        </div>
+        <div>
+          <h3 class="text-white font-semibold mb-4">Quick Links</h3>
+          <ul class="space-y-2 text-sm">
+            <li><a href="/queue-monitor" class="hover:text-white transition-colors">Queue Monitor</a></li>
+            <li><a href="/food-rescue" class="hover:text-white transition-colors">Food Rescue</a></li>
+            <li><a href="/vendor-portal" class="hover:text-white transition-colors">Vendor Portal</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="text-white font-semibold mb-4">Impact</h3>
+          <p class="text-sm">Together we're reducing food waste and building a sustainable Singapore</p>
+        </div>
+      </div>
+      <div class="border-t border-gray-800 mt-8 pt-8 text-sm text-center">
+        &copy; 2025 Food Rescue SG. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobileMenu');
+      menu.classList.toggle('hidden');
+    }
+  </script>
+</body>
+</html>
