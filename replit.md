@@ -133,7 +133,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**November 5, 2025**
+**November 5, 2025 - Latest Update**
+- **Queue Monitor Real-Time Updates**: Implemented live countdown for wait times
+  - Wait times now decrease every second from initial values
+  - Immediate update on page load for accurate display
+  - Visual indicator (green, bold) when wait time reaches zero
+  - Efficient single-interval update for all stalls
+- **Food Rescue Reserve Functionality**: Full reservation system implemented
+  - "Reserve Now" buttons mark listings as unavailable via API
+  - Smooth card removal with CSS fadeOutScale animation
+  - Toast notification system replaces blocking alerts
+  - Auto-updates listing grid when items are reserved
+  - Proper error handling with user feedback
 - Fixed WebSocket connectivity issue for Neon PostgreSQL database
 - Successfully installed `ws` package required for Neon serverless WebSocket connections
 - Configured `neonConfig.webSocketConstructor` to use ws module

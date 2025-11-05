@@ -43,6 +43,19 @@
     h1, h2, h3, h4, h5, h6 {
       font-family: 'DM Sans', sans-serif;
     }
+    .removing {
+      animation: fadeOutScale 0.4s ease-out forwards;
+    }
+    @keyframes fadeOutScale {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -222,8 +235,10 @@
             </div>
 
             <!-- CTA Button -->
-            <button class="w-full px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-all"
-                    data-testid="button-reserve-<%= listing.id %>">
+            <button onclick="reserveListing('<%= listing.id %>')"
+                    class="w-full px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid="button-reserve-<%= listing.id %>"
+                    id="reserve-btn-<%= listing.id %>">
               Reserve Now
             </button>
           </div>
@@ -284,6 +299,88 @@
 
       // Show/hide no results message
       document.getElementById('noResults').classList.toggle('hidden', visibleCount > 0);
+    }
+
+    async function reserveListing(listingId) {
+      const button = document.getElementById('reserve-btn-' + listingId);
+      
+      // Disable button and show loading state
+      button.disabled = true;
+      button.textContent = 'Reserving...';
+      
+      try {
+        const response = await fetch('/api/food-listings/' + listingId + '/availability', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ available: false })
+        });
+        
+        if (response.ok) {
+          // Update button to show success
+          button.textContent = 'Reserved!';
+          button.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+          button.classList.add('bg-green-600');
+          
+          // Show success message with toast-style notification
+          showToast('Food reserved successfully! Please check your email for pickup details.', 'success');
+            
+          // Remove the listing from view
+          setTimeout(() => {
+            const card = button.closest('.food-listing');
+            if (card) {
+              // Add removing animation class
+              card.classList.add('removing');
+              
+              // Remove card after animation completes
+              setTimeout(() => {
+                card.remove();
+                // Update filter to show "no results" message if needed
+                filterListings();
+              }, 400); // Match animation duration
+            }
+          }, 800); // Short delay to show the success state
+        } else {
+          throw new Error('Failed to reserve');
+        }
+      } catch (error) {
+        console.error('Failed to reserve listing:', error);
+        showToast('Failed to reserve food. Please try again.', 'error');
+        button.disabled = false;
+        button.textContent = 'Reserve Now';
+      }
+    }
+
+    // Simple toast notification system
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-xl text-white font-semibold z-50 transform transition-all duration-300';
+      
+      if (type === 'success') {
+        toast.classList.add('bg-green-600');
+      } else if (type === 'error') {
+        toast.classList.add('bg-red-600');
+      } else {
+        toast.classList.add('bg-blue-600');
+      }
+      
+      toast.textContent = message;
+      toast.style.transform = 'translateY(100px)';
+      toast.style.opacity = '0';
+      
+      document.body.appendChild(toast);
+      
+      // Animate in
+      setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+      }, 10);
+      
+      // Remove after 4 seconds
+      setTimeout(() => {
+        toast.style.transform = 'translateY(100px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
     }
   </script>
 </body>

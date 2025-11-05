@@ -146,7 +146,7 @@
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
-                      <span><%= stall.estimatedWaitTime %> min</span>
+                      <span class="wait-time" data-stall-id="<%= stall.id %>" data-initial-wait="<%= stall.estimatedWaitTime %>"><%= stall.estimatedWaitTime %> min</span>
                     </div>
                   </div>
                 </div>
@@ -161,6 +161,9 @@
   <%- include('partials/footer') %>
 
   <script>
+    // Track page load time for real-time countdown
+    const pageLoadTime = Date.now();
+
     function toggleStalls(canteenId) {
       const stallsDiv = document.getElementById('stalls-' + canteenId);
       stallsDiv.classList.toggle('hidden');
@@ -180,6 +183,27 @@
         console.error('Failed to refresh queues:', error);
       }
     }
+
+    // Update wait times in real-time
+    function updateWaitTimes() {
+      const elapsedSeconds = Math.floor((Date.now() - pageLoadTime) / 1000);
+      const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+      
+      document.querySelectorAll('.wait-time').forEach(element => {
+        const initialWait = parseInt(element.getAttribute('data-initial-wait'));
+        const currentWait = Math.max(0, initialWait - elapsedMinutes);
+        element.textContent = currentWait + ' min';
+        
+        // Change color based on remaining time
+        if (currentWait === 0) {
+          element.classList.add('text-green-600', 'font-semibold');
+        }
+      });
+    }
+
+    // Update wait times immediately on load and then every second
+    updateWaitTimes();
+    setInterval(updateWaitTimes, 1000);
 
     // Auto-refresh every 30 seconds
     setInterval(refreshQueues, 30000);
