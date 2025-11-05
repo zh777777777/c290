@@ -3,9 +3,17 @@ import {
   type Stall, type InsertStall,
   type FoodListing, type InsertFoodListing,
   type Vendor, type InsertVendor,
-  type Rating, type InsertRating
+  type Rating, type InsertRating,
+  canteens, stalls, foodListings, vendors, ratings
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { eq, and, sql } from "drizzle-orm";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+// Configure WebSocket for Neon
+neonConfig.webSocketConstructor = ws;
 
 export interface IStorage {
   // Canteens
@@ -306,4 +314,285 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage using PostgreSQL + Drizzle ORM
+export class DbStorage implements IStorage {
+  private db;
+
+  constructor() {
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    this.db = drizzle(pool);
+  }
+
+  // Canteens
+  async getAllCanteens(): Promise<Canteen[]> {
+    return await this.db.select().from(canteens);
+  }
+
+  async getCanteen(id: string): Promise<Canteen | undefined> {
+    const results = await this.db.select().from(canteens).where(eq(canteens.id, id));
+    return results[0];
+  }
+
+  async createCanteen(insertCanteen: InsertCanteen): Promise<Canteen> {
+    const id = randomUUID();
+    const results = await this.db.insert(canteens).values({ ...insertCanteen, id, totalStalls: 0 }).returning();
+    return results[0];
+  }
+
+  // Stalls
+  async getAllStalls(): Promise<Stall[]> {
+    return await this.db.select().from(stalls);
+  }
+
+  async getStallsByCanteen(canteenId: string): Promise<Stall[]> {
+    return await this.db.select().from(stalls).where(eq(stalls.canteenId, canteenId));
+  }
+
+  async getStall(id: string): Promise<Stall | undefined> {
+    const results = await this.db.select().from(stalls).where(eq(stalls.id, id));
+    return results[0];
+  }
+
+  async createStall(insertStall: InsertStall): Promise<Stall> {
+    const id = randomUUID();
+    const results = await this.db.insert(stalls).values({ 
+      ...insertStall, 
+      id,
+      rating: "0",
+      reviewCount: 0 
+    }).returning();
+    
+    // Update canteen stall count
+    await this.db
+      .update(canteens)
+      .set({ totalStalls: sql`${canteens.totalStalls} + 1` })
+      .where(eq(canteens.id, insertStall.canteenId));
+    
+    return results[0];
+  }
+
+  async updateStallQueue(id: string, queueNumber: number, waitTime: number): Promise<Stall | undefined> {
+    const results = await this.db
+      .update(stalls)
+      .set({ currentQueue: queueNumber, estimatedWaitTime: waitTime })
+      .where(eq(stalls.id, id))
+      .returning();
+    return results[0];
+  }
+
+  // Food Listings
+  async getAllFoodListings(availableOnly: boolean = false): Promise<FoodListing[]> {
+    if (availableOnly) {
+      return await this.db.select().from(foodListings).where(eq(foodListings.available, true));
+    }
+    return await this.db.select().from(foodListings);
+  }
+
+  async getFoodListing(id: string): Promise<FoodListing | undefined> {
+    const results = await this.db.select().from(foodListings).where(eq(foodListings.id, id));
+    return results[0];
+  }
+
+  async getFoodListingsByVendor(vendorId: string): Promise<FoodListing[]> {
+    return await this.db.select().from(foodListings).where(eq(foodListings.vendorId, vendorId));
+  }
+
+  async createFoodListing(insertListing: InsertFoodListing): Promise<FoodListing> {
+    const id = randomUUID();
+    const results = await this.db.insert(foodListings).values({
+      ...insertListing,
+      id,
+      available: true,
+    }).returning();
+    return results[0];
+  }
+
+  async updateFoodListingAvailability(id: string, available: boolean): Promise<FoodListing | undefined> {
+    const results = await this.db
+      .update(foodListings)
+      .set({ available })
+      .where(eq(foodListings.id, id))
+      .returning();
+    return results[0];
+  }
+
+  // Vendors
+  async getAllVendors(): Promise<Vendor[]> {
+    return await this.db.select().from(vendors);
+  }
+
+  async getVendor(id: string): Promise<Vendor | undefined> {
+    const results = await this.db.select().from(vendors).where(eq(vendors.id, id));
+    return results[0];
+  }
+
+  async createVendor(insertVendor: InsertVendor): Promise<Vendor> {
+    const id = randomUUID();
+    const results = await this.db.insert(vendors).values({
+      ...insertVendor,
+      id,
+      rating: "0",
+      reviewCount: 0,
+    }).returning();
+    return results[0];
+  }
+
+  // Ratings
+  async createRating(insertRating: InsertRating): Promise<Rating> {
+    const id = randomUUID();
+    const results = await this.db.insert(ratings).values({
+      ...insertRating,
+      id,
+    }).returning();
+    
+    // Update entity rating
+    await this.updateEntityRating(insertRating.entityType, insertRating.entityId);
+    
+    return results[0];
+  }
+
+  async getRatingsByEntity(entityType: string, entityId: string): Promise<Rating[]> {
+    return await this.db
+      .select()
+      .from(ratings)
+      .where(and(eq(ratings.entityType, entityType), eq(ratings.entityId, entityId)));
+  }
+
+  async updateEntityRating(entityType: string, entityId: string): Promise<void> {
+    const entityRatings = await this.getRatingsByEntity(entityType, entityId);
+    if (entityRatings.length === 0) return;
+
+    // Keep numeric value - Drizzle will handle decimal conversion
+    const avgRating = entityRatings.reduce((sum, r) => sum + r.rating, 0) / entityRatings.length;
+    
+    if (entityType === 'stall') {
+      await this.db
+        .update(stalls)
+        .set({ rating: sql`${avgRating}::numeric(3,2)`, reviewCount: entityRatings.length })
+        .where(eq(stalls.id, entityId));
+    } else if (entityType === 'vendor') {
+      await this.db
+        .update(vendors)
+        .set({ rating: sql`${avgRating}::numeric(3,2)`, reviewCount: entityRatings.length })
+        .where(eq(vendors.id, entityId));
+    }
+  }
+
+  // Seed database with initial data
+  async seedDatabase() {
+    // Check if already seeded
+    const existingCanteens = await this.getAllCanteens();
+    if (existingCanteens.length > 0) {
+      console.log("Database already seeded, skipping...");
+      return;
+    }
+
+    console.log("Seeding database with initial data...");
+
+    // Seed 5 canteens
+    const canteenNames = ["North Canteen", "South Canteen", "East Canteen", "West Canteen", "Central Canteen"];
+    const canteenLocations = ["Block A", "Block B", "Block C", "Block D", "Block E"];
+    
+    for (let i = 0; i < canteenNames.length; i++) {
+      const id = `canteen-${i + 1}`;
+      await this.db.insert(canteens).values({
+        id,
+        name: canteenNames[i],
+        location: canteenLocations[i],
+        totalStalls: 0,
+      });
+    }
+
+    // Seed stalls for each canteen
+    const cuisines = ["Chinese", "Malay", "Indian", "Western", "Japanese", "Korean", "Thai", "Vietnamese"];
+    const stallNames = [
+      "Wok & Roll", "Nasi Lemak Paradise", "Curry House", "Grill Master",
+      "Sushi Station", "K-Food Corner", "Thai Delights", "Pho Heaven",
+      "Chicken Rice Express", "Mee Goreng", "Roti Prata", "Fish & Chips",
+      "Bento Box", "Bibimbap Bowl", "Tom Yum", "Spring Rolls"
+    ];
+
+    let stallIndex = 0;
+    const seededCanteens = await this.getAllCanteens();
+    
+    for (const canteen of seededCanteens) {
+      const numStalls = Math.floor(Math.random() * 3) + 3; // 3-5 stalls per canteen
+      for (let i = 0; i < numStalls; i++) {
+        const id = `stall-${stallIndex + 1}`;
+        const queue = Math.floor(Math.random() * 20); // 0-19 people
+        const waitTime = Math.ceil(queue * 2.5); // ~2.5 min per person
+        
+        await this.db.insert(stalls).values({
+          id,
+          canteenId: canteen.id,
+          name: stallNames[stallIndex % stallNames.length],
+          cuisineType: cuisines[stallIndex % cuisines.length],
+          currentQueue: queue,
+          estimatedWaitTime: waitTime,
+          rating: (Math.random() * 1.5 + 3.5).toFixed(2), // 3.5-5.0
+          reviewCount: Math.floor(Math.random() * 200) + 50,
+        });
+        stallIndex++;
+      }
+      
+      // Update canteen stall count
+      await this.db
+        .update(canteens)
+        .set({ totalStalls: numStalls })
+        .where(eq(canteens.id, canteen.id));
+    }
+
+    // Seed vendors
+    const vendorData = [
+      { name: "Sunrise Bakery", type: "bakery", address: "123 Orchard Road", operatingHours: "6:00 AM - 8:00 PM" },
+      { name: "Golden Wok Restaurant", type: "restaurant", address: "456 Chinatown Street", operatingHours: "11:00 AM - 10:00 PM" },
+      { name: "Kopi & Toast Cafe", type: "cafe", address: "789 Marina Bay", operatingHours: "7:00 AM - 6:00 PM" },
+      { name: "Hawker's Delight", type: "hawker", address: "101 East Coast Road", operatingHours: "10:00 AM - 9:00 PM" },
+      { name: "French Patisserie", type: "bakery", address: "234 Somerset Road", operatingHours: "8:00 AM - 7:00 PM" },
+    ];
+
+    for (let i = 0; i < vendorData.length; i++) {
+      const id = `vendor-${i + 1}`;
+      await this.db.insert(vendors).values({
+        id,
+        ...vendorData[i],
+        rating: (Math.random() * 1 + 4).toFixed(2), // 4.0-5.0
+        reviewCount: Math.floor(Math.random() * 150) + 30,
+        imageUrl: null,
+      });
+    }
+
+    // Seed food listings
+    const foodItems = [
+      { title: "Assorted Bread & Pastries", desc: "Fresh croissants, baguettes, and danish pastries", img: "Bakery_bread_and_pastries_491a3fb4.png", original: 25, discounted: 12 },
+      { title: "Nasi Lemak Set", desc: "Fragrant coconut rice with chicken, sambal, and sides", img: "Nasi_lemak_food_item_ff62eaaa.png", original: 8, discounted: 4 },
+      { title: "Dim Sum Platter", desc: "Assorted steamed dim sum - har gow, siu mai, bao", img: "Dim_sum_selection_52cbe93d.png", original: 18, discounted: 9 },
+      { title: "Fresh Salad Bowl", desc: "Mixed greens with seasonal vegetables and dressing", img: "Fresh_salad_bowl_933a387a.png", original: 12, discounted: 6 },
+      { title: "Chicken Rice", desc: "Tender sliced chicken with fragrant rice and chili sauce", img: "Chicken_rice_dish_87e4f1a2.png", original: 6, discounted: 3 },
+    ];
+
+    for (let i = 0; i < foodItems.length; i++) {
+      const id = `listing-${i + 1}`;
+      const vendorId = `vendor-${(i % vendorData.length) + 1}`;
+      const item = foodItems[i];
+      
+      await this.db.insert(foodListings).values({
+        id,
+        vendorId,
+        title: item.title,
+        description: item.desc,
+        originalPrice: item.original.toFixed(2),
+        discountedPrice: item.discounted.toFixed(2),
+        quantity: Math.floor(Math.random() * 10) + 5,
+        pickupTimeStart: "17:00",
+        pickupTimeEnd: "19:30",
+        imageUrl: item.img,
+        available: true,
+      });
+    }
+
+    console.log("Database seeding completed!");
+  }
+}
+
+export const storage = new DbStorage();
