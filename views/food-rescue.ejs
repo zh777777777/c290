@@ -1,4 +1,53 @@
-<%- include('layout', { body: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#2D8659',
+              50: '#E8F5EF',
+              100: '#D1EBE0',
+              500: '#2D8659',
+              600: '#256F4A',
+              700: '#1D583B',
+            },
+            accent: {
+              DEFAULT: '#F59E0B',
+              100: '#FEF3C7',
+              500: '#F59E0B',
+              600: '#D97706',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+            display: ['DM Sans', 'ui-sans-serif', 'system-ui'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'DM Sans', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <%- include('partials/nav', { activePage: activePage }) %>
+
   <!-- Hero Section -->
   <div class="relative h-[50vh] md:h-[60vh] overflow-hidden">
     <img src="/assets/generated_images/Singapore_hawker_center_hero_295daae0.png" 
@@ -32,19 +81,19 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div class="text-center">
-          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-saved">$${stats.totalSaved}</div>
+          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-saved">$<%= stats.totalSaved %></div>
           <div class="text-sm text-gray-600">Money Saved</div>
         </div>
         <div class="text-center">
-          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-meals">${stats.mealsRescued}</div>
+          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-meals"><%= stats.mealsRescued %></div>
           <div class="text-sm text-gray-600">Meals Rescued</div>
         </div>
         <div class="text-center">
-          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-co2">${stats.co2Reduced}kg</div>
+          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-co2"><%= stats.co2Reduced %>kg</div>
           <div class="text-sm text-gray-600">CO₂ Reduced</div>
         </div>
         <div class="text-center">
-          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-vendors">${vendors.length}</div>
+          <div class="text-3xl font-bold text-primary-600 mb-2" data-testid="text-stat-vendors"><%= vendors.length %></div>
           <div class="text-sm text-gray-600">Partner Vendors</div>
         </div>
       </div>
@@ -103,17 +152,19 @@
     <h2 class="text-3xl font-bold text-gray-900 mb-8">Available Food</h2>
     
     <div id="listingsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      ${listings.map(listing => `
+      <% listings.forEach(function(listing) { 
+        const discountPercent = Math.round((1 - parseFloat(listing.discountedPrice) / parseFloat(listing.originalPrice)) * 100);
+      %>
         <div class="food-listing bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-             data-vendor-type="${listing.vendor?.type || ''}"
-             data-title="${listing.title.toLowerCase()}"
-             data-testid="card-listing-${listing.id}">
+             data-vendor-type="<%= listing.vendor?.type || '' %>"
+             data-title="<%= listing.title.toLowerCase() %>"
+             data-testid="card-listing-<%= listing.id %>">
           <!-- Food Image -->
           <div class="aspect-square overflow-hidden bg-gray-100">
-            <img src="/assets/generated_images/${listing.imageUrl}" 
-                 alt="${listing.title}"
+            <img src="/assets/generated_images/<%= listing.imageUrl %>" 
+                 alt="<%= listing.title %>"
                  class="w-full h-full object-cover"
-                 data-testid="img-food-${listing.id}">
+                 data-testid="img-food-<%= listing.id %>">
           </div>
 
           <!-- Content -->
@@ -126,31 +177,31 @@
                 </svg>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-gray-900 truncate">${listing.vendor?.name || 'Unknown Vendor'}</p>
-                <p class="text-xs text-gray-500 capitalize">${listing.vendor?.type || ''}</p>
+                <p class="text-sm font-semibold text-gray-900 truncate"><%= listing.vendor?.name || 'Unknown Vendor' %></p>
+                <p class="text-xs text-gray-500 capitalize"><%= listing.vendor?.type || '' %></p>
               </div>
-              ${listing.vendor ? `
+              <% if (listing.vendor) { %>
                 <div class="flex items-center gap-1">
                   <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                   </svg>
-                  <span class="text-xs font-medium text-gray-600">${parseFloat(listing.vendor.rating).toFixed(1)}</span>
+                  <span class="text-xs font-medium text-gray-600"><%= parseFloat(listing.vendor.rating).toFixed(1) %></span>
                 </div>
-              ` : ''}
+              <% } %>
             </div>
 
             <!-- Title -->
-            <h3 class="text-xl font-semibold text-gray-900 mb-2" data-testid="text-title-${listing.id}">${listing.title}</h3>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2" data-testid="text-title-<%= listing.id %>"><%= listing.title %></h3>
             
             <!-- Description -->
-            <p class="text-sm text-gray-600 mb-4 line-clamp-2">${listing.description}</p>
+            <p class="text-sm text-gray-600 mb-4 line-clamp-2"><%= listing.description %></p>
 
             <!-- Pricing -->
             <div class="flex items-baseline gap-3 mb-4">
-              <span class="text-2xl font-bold text-primary-600" data-testid="text-price-${listing.id}">$${parseFloat(listing.discountedPrice).toFixed(2)}</span>
-              <span class="text-lg text-gray-400 line-through">$${parseFloat(listing.originalPrice).toFixed(2)}</span>
+              <span class="text-2xl font-bold text-primary-600" data-testid="text-price-<%= listing.id %>">$<%= parseFloat(listing.discountedPrice).toFixed(2) %></span>
+              <span class="text-lg text-gray-400 line-through">$<%= parseFloat(listing.originalPrice).toFixed(2) %></span>
               <span class="ml-auto px-3 py-1 bg-accent-100 text-accent-600 rounded-full text-xs font-semibold">
-                ${Math.round((1 - parseFloat(listing.discountedPrice) / parseFloat(listing.originalPrice)) * 100)}% OFF
+                <%= discountPercent %>% OFF
               </span>
             </div>
 
@@ -160,24 +211,24 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                 </svg>
-                <span>${listing.quantity} portions available</span>
+                <span><%= listing.quantity %> portions available</span>
               </div>
               <div class="flex items-center gap-2 text-sm text-gray-600">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <span>Pickup: ${listing.pickupTimeStart} - ${listing.pickupTimeEnd}</span>
+                <span>Pickup: <%= listing.pickupTimeStart %> - <%= listing.pickupTimeEnd %></span>
               </div>
             </div>
 
             <!-- CTA Button -->
             <button class="w-full px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-all"
-                    data-testid="button-reserve-${listing.id}">
+                    data-testid="button-reserve-<%= listing.id %>">
               Reserve Now
             </button>
           </div>
         </div>
-      `).join('')}
+      <% }); %>
     </div>
 
     <div id="noResults" class="hidden text-center py-12">
@@ -188,6 +239,8 @@
       <p class="text-gray-600">Try adjusting your search or filters</p>
     </div>
   </div>
+
+  <%- include('partials/footer') %>
 
   <script>
     let currentFilter = 'all';
@@ -233,4 +286,5 @@
       document.getElementById('noResults').classList.toggle('hidden', visibleCount > 0);
     }
   </script>
-` }) %>
+</body>
+</html>

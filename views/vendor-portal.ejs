@@ -1,4 +1,53 @@
-<%- include('layout', { body: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#2D8659',
+              50: '#E8F5EF',
+              100: '#D1EBE0',
+              500: '#2D8659',
+              600: '#256F4A',
+              700: '#1D583B',
+              800: '#174B2E',
+            },
+            accent: {
+              DEFAULT: '#F59E0B',
+              100: '#FEF3C7',
+              500: '#F59E0B',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+            display: ['DM Sans', 'ui-sans-serif', 'system-ui'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'DM Sans', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <%- include('partials/nav', { activePage: activePage }) %>
+
   <!-- Header Section -->
   <div class="bg-gradient-to-br from-primary-600 to-primary-800 text-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -57,9 +106,9 @@
                   class="w-full h-12 px-4 rounded-lg border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all"
                   data-testid="select-vendor">
             <option value="">Select your business...</option>
-            ${vendors.map(vendor => `
-              <option value="${vendor.id}">${vendor.name} (${vendor.type})</option>
-            `).join('')}
+            <% vendors.forEach(function(vendor) { %>
+              <option value="<%= vendor.id %>"><%= vendor.name %> (<%= vendor.type %>)</option>
+            <% }); %>
           </select>
         </div>
 
@@ -199,6 +248,8 @@
     </div>
   </div>
 
+  <%- include('partials/footer') %>
+
   <script>
     document.getElementById('foodListingForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -238,4 +289,5 @@
       }
     });
   </script>
-` }) %>
+</body>
+</html>

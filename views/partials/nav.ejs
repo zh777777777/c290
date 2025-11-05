@@ -1,0 +1,64 @@
+<nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <!-- Logo -->
+      <div class="flex items-center">
+        <a href="/" class="flex items-center gap-2">
+          <svg class="w-8 h-8 text-primary-600" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+          </svg>
+          <span class="text-xl font-bold text-gray-900">Food Rescue SG</span>
+        </a>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex items-center gap-1">
+        <a href="/queue-monitor" 
+           class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'queue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+           data-testid="link-queue-monitor">
+          Queue Monitor
+        </a>
+        <a href="/food-rescue" 
+           class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'rescue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+           data-testid="link-food-rescue">
+          Food Rescue
+        </a>
+        <a href="/vendor-portal" 
+           class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'vendor' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+           data-testid="link-vendor-portal">
+          Vendor Portal
+        </a>
+      </div>
+
+      <!-- Mobile menu button -->
+      <button class="md:hidden p-2 rounded-lg hover:bg-gray-100" onclick="toggleMobileMenu()" data-testid="button-mobile-menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Navigation -->
+    <div id="mobileMenu" class="hidden md:hidden pb-4">
+      <a href="/queue-monitor" 
+         class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'queue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+        Queue Monitor
+      </a>
+      <a href="/food-rescue" 
+         class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'rescue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+        Food Rescue
+      </a>
+      <a href="/vendor-portal" 
+         class="block px-4 py-2 rounded-lg text-sm font-medium <%= activePage === 'vendor' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+        Vendor Portal
+      </a>
+    </div>
+  </div>
+</nav>
+
+<script>
+  function toggleMobileMenu() {
+    const menu = document.getElementById('mobileMenu');
+    menu.classList.toggle('hidden');
+  }
+</script>

@@ -53,6 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activePage: "queue",
       });
     } catch (error) {
+      console.error("Error rendering queue monitor:", error);
       res.status(500).send("Error loading queue monitor");
     }
   });
@@ -88,6 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activePage: "rescue",
       });
     } catch (error) {
+      console.error("Error rendering food rescue:", error);
       res.status(500).send("Error loading food rescue marketplace");
     }
   });
@@ -102,6 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activePage: "vendor",
       });
     } catch (error) {
+      console.error("Error rendering vendor portal:", error);
       res.status(500).send("Error loading vendor portal");
     }
   });
