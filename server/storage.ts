@@ -7,9 +7,13 @@ import {
   canteens, stalls, foodListings, vendors, ratings
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { eq, and, sql } from "drizzle-orm";
-import mysql from "mysql2/promise";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+// Configure WebSocket for Neon
+neonConfig.webSocketConstructor = ws;
 
 export interface IStorage {
   // Canteens
@@ -157,7 +161,7 @@ export class MemStorage implements IStorage {
         pickupTimeStart: "17:00",
         pickupTimeEnd: "19:30",
         imageUrl: item.img,
-        available: 1,
+        available: true,
         createdAt: new Date(),
       });
     });
@@ -243,7 +247,7 @@ export class MemStorage implements IStorage {
     const listing: FoodListing = {
       ...insertListing,
       id,
-      available: 1,
+      available: true,
       createdAt: new Date(),
     };
     this.foodListings.set(id, listing);
@@ -253,7 +257,7 @@ export class MemStorage implements IStorage {
   async updateFoodListingAvailability(id: string, available: boolean): Promise<FoodListing | undefined> {
     const listing = this.foodListings.get(id);
     if (listing) {
-      listing.available = available ? 1 : 0;
+      listing.available = available;
     }
     return listing;
   }
@@ -363,12 +367,12 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Database Storage using MySQL + Drizzle ORM
+// Database Storage using PostgreSQL + Drizzle ORM
 export class DbStorage implements IStorage {
   private db;
 
   constructor() {
-    const pool = mysql.createPool(process.env.DATABASE_URL!);
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     this.db = drizzle(pool);
   }
 
@@ -384,9 +388,8 @@ export class DbStorage implements IStorage {
 
   async createCanteen(insertCanteen: InsertCanteen): Promise<Canteen> {
     const id = randomUUID();
-    await this.db.insert(canteens).values({ ...insertCanteen, id, totalStalls: 0 });
-    const result = await this.getCanteen(id);
-    return result!;
+    const results = await this.db.insert(canteens).values({ ...insertCanteen, id, totalStalls: 0 }).returning();
+    return results[0];
   }
 
   // Stalls
@@ -405,12 +408,12 @@ export class DbStorage implements IStorage {
 
   async createStall(insertStall: InsertStall): Promise<Stall> {
     const id = randomUUID();
-    await this.db.insert(stalls).values({ 
+    const results = await this.db.insert(stalls).values({ 
       ...insertStall, 
       id,
       rating: "0",
       reviewCount: 0 
-    });
+    }).returning();
     
     // Update canteen stall count
     await this.db
@@ -418,22 +421,22 @@ export class DbStorage implements IStorage {
       .set({ totalStalls: sql`${canteens.totalStalls} + 1` })
       .where(eq(canteens.id, insertStall.canteenId));
     
-    const result = await this.getStall(id);
-    return result!;
+    return results[0];
   }
 
   async updateStallQueue(id: string, queueNumber: number, waitTime: number): Promise<Stall | undefined> {
-    await this.db
+    const results = await this.db
       .update(stalls)
       .set({ currentQueue: queueNumber, estimatedWaitTime: waitTime })
-      .where(eq(stalls.id, id));
-    return await this.getStall(id);
+      .where(eq(stalls.id, id))
+      .returning();
+    return results[0];
   }
 
   // Food Listings
   async getAllFoodListings(availableOnly: boolean = false): Promise<FoodListing[]> {
     if (availableOnly) {
-      return await this.db.select().from(foodListings).where(eq(foodListings.available, 1));
+      return await this.db.select().from(foodListings).where(eq(foodListings.available, true));
     }
     return await this.db.select().from(foodListings);
   }
@@ -449,21 +452,21 @@ export class DbStorage implements IStorage {
 
   async createFoodListing(insertListing: InsertFoodListing): Promise<FoodListing> {
     const id = randomUUID();
-    await this.db.insert(foodListings).values({
+    const results = await this.db.insert(foodListings).values({
       ...insertListing,
       id,
-      available: 1,
-    });
-    const result = await this.getFoodListing(id);
-    return result!;
+      available: true,
+    }).returning();
+    return results[0];
   }
 
   async updateFoodListingAvailability(id: string, available: boolean): Promise<FoodListing | undefined> {
-    await this.db
+    const results = await this.db
       .update(foodListings)
-      .set({ available: available ? 1 : 0 })
-      .where(eq(foodListings.id, id));
-    return await this.getFoodListing(id);
+      .set({ available })
+      .where(eq(foodListings.id, id))
+      .returning();
+    return results[0];
   }
 
   // Vendors
@@ -478,14 +481,13 @@ export class DbStorage implements IStorage {
 
   async createVendor(insertVendor: InsertVendor): Promise<Vendor> {
     const id = randomUUID();
-    await this.db.insert(vendors).values({
+    const results = await this.db.insert(vendors).values({
       ...insertVendor,
       id,
       rating: "0",
       reviewCount: 0,
-    });
-    const result = await this.getVendor(id);
-    return result!;
+    }).returning();
+    return results[0];
   }
 
   // Canteen Delete
@@ -526,16 +528,15 @@ export class DbStorage implements IStorage {
   // Ratings
   async createRating(insertRating: InsertRating): Promise<Rating> {
     const id = randomUUID();
-    await this.db.insert(ratings).values({
+    const results = await this.db.insert(ratings).values({
       ...insertRating,
       id,
-    });
+    }).returning();
     
     // Update entity rating
     await this.updateEntityRating(insertRating.entityType, insertRating.entityId);
     
-    const result = await this.db.select().from(ratings).where(eq(ratings.id, id));
-    return result[0];
+    return results[0];
   }
 
   async getRatingsByEntity(entityType: string, entityId: string): Promise<Rating[]> {
@@ -553,19 +554,18 @@ export class DbStorage implements IStorage {
     const entityRatings = await this.getRatingsByEntity(entityType, entityId);
     if (entityRatings.length === 0) return;
 
-    // Calculate average rating
+    // Keep numeric value - Drizzle will handle decimal conversion
     const avgRating = entityRatings.reduce((sum, r) => sum + r.rating, 0) / entityRatings.length;
-    const ratingStr = avgRating.toFixed(2);
     
     if (entityType === 'stall') {
       await this.db
         .update(stalls)
-        .set({ rating: ratingStr, reviewCount: entityRatings.length })
+        .set({ rating: sql`${avgRating}::numeric(3,2)`, reviewCount: entityRatings.length })
         .where(eq(stalls.id, entityId));
     } else if (entityType === 'vendor') {
       await this.db
         .update(vendors)
-        .set({ rating: ratingStr, reviewCount: entityRatings.length })
+        .set({ rating: sql`${avgRating}::numeric(3,2)`, reviewCount: entityRatings.length })
         .where(eq(vendors.id, entityId));
     }
   }
@@ -679,7 +679,7 @@ export class DbStorage implements IStorage {
         pickupTimeStart: "17:00",
         pickupTimeEnd: "19:30",
         imageUrl: item.img,
-        available: 1,
+        available: true,
       });
     }
 
