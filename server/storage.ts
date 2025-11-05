@@ -7,13 +7,9 @@ import {
   canteens, stalls, foodListings, vendors, ratings
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle } from "drizzle-orm/mysql2";
 import { eq, and, sql } from "drizzle-orm";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
-
-// Configure WebSocket for Neon
-neonConfig.webSocketConstructor = ws;
+import mysql from "mysql2/promise";
 
 export interface IStorage {
   // Canteens
@@ -116,18 +112,21 @@ export class MemStorage implements IStorage {
 
     // Seed vendors
     const vendorData = [
-      { name: "Sunrise Bakery", type: "bakery", address: "123 Orchard Road", hours: "6:00 AM - 8:00 PM" },
-      { name: "Golden Wok Restaurant", type: "restaurant", address: "456 Chinatown Street", hours: "11:00 AM - 10:00 PM" },
-      { name: "Kopi & Toast Cafe", type: "cafe", address: "789 Marina Bay", hours: "7:00 AM - 6:00 PM" },
-      { name: "Hawker's Delight", type: "hawker", address: "101 East Coast Road", hours: "10:00 AM - 9:00 PM" },
-      { name: "French Patisserie", type: "bakery", address: "234 Somerset Road", hours: "8:00 AM - 7:00 PM" },
+      { name: "Sunrise Bakery", type: "bakery", address: "123 Orchard Road", operatingHours: "6:00 AM - 8:00 PM" },
+      { name: "Golden Wok Restaurant", type: "restaurant", address: "456 Chinatown Street", operatingHours: "11:00 AM - 10:00 PM" },
+      { name: "Kopi & Toast Cafe", type: "cafe", address: "789 Marina Bay", operatingHours: "7:00 AM - 6:00 PM" },
+      { name: "Hawker's Delight", type: "hawker", address: "101 East Coast Road", operatingHours: "10:00 AM - 9:00 PM" },
+      { name: "French Patisserie", type: "bakery", address: "234 Somerset Road", operatingHours: "8:00 AM - 7:00 PM" },
     ];
 
     vendorData.forEach((data, index) => {
       const id = `vendor-${index + 1}`;
       this.vendors.set(id, {
         id,
-        ...data,
+        name: data.name,
+        type: data.type,
+        address: data.address,
+        operatingHours: data.operatingHours,
         rating: (Math.random() * 1 + 4).toFixed(2), // 4.0-5.0
         reviewCount: Math.floor(Math.random() * 150) + 30,
         imageUrl: null,
@@ -158,7 +157,7 @@ export class MemStorage implements IStorage {
         pickupTimeStart: "17:00",
         pickupTimeEnd: "19:30",
         imageUrl: item.img,
-        available: true,
+        available: 1,
         createdAt: new Date(),
       });
     });
@@ -196,8 +195,12 @@ export class MemStorage implements IStorage {
   async createStall(insertStall: InsertStall): Promise<Stall> {
     const id = randomUUID();
     const stall: Stall = { 
-      ...insertStall, 
       id,
+      canteenId: insertStall.canteenId,
+      name: insertStall.name,
+      cuisineType: insertStall.cuisineType,
+      currentQueue: insertStall.currentQueue ?? 0,
+      estimatedWaitTime: insertStall.estimatedWaitTime ?? 0,
       rating: "0",
       reviewCount: 0 
     };
@@ -240,7 +243,7 @@ export class MemStorage implements IStorage {
     const listing: FoodListing = {
       ...insertListing,
       id,
-      available: true,
+      available: 1,
       createdAt: new Date(),
     };
     this.foodListings.set(id, listing);
@@ -250,7 +253,7 @@ export class MemStorage implements IStorage {
   async updateFoodListingAvailability(id: string, available: boolean): Promise<FoodListing | undefined> {
     const listing = this.foodListings.get(id);
     if (listing) {
-      listing.available = available;
+      listing.available = available ? 1 : 0;
     }
     return listing;
   }
@@ -267,10 +270,14 @@ export class MemStorage implements IStorage {
   async createVendor(insertVendor: InsertVendor): Promise<Vendor> {
     const id = randomUUID();
     const vendor: Vendor = {
-      ...insertVendor,
       id,
+      name: insertVendor.name,
+      type: insertVendor.type,
+      address: insertVendor.address,
+      operatingHours: insertVendor.operatingHours,
       rating: "0",
       reviewCount: 0,
+      imageUrl: insertVendor.imageUrl || null,
     };
     this.vendors.set(id, vendor);
     return vendor;
@@ -280,8 +287,11 @@ export class MemStorage implements IStorage {
   async createRating(insertRating: InsertRating): Promise<Rating> {
     const id = randomUUID();
     const rating: Rating = {
-      ...insertRating,
       id,
+      entityType: insertRating.entityType,
+      entityId: insertRating.entityId,
+      rating: insertRating.rating,
+      review: insertRating.review || null,
       createdAt: new Date(),
     };
     this.ratings.set(id, rating);
@@ -295,6 +305,10 @@ export class MemStorage implements IStorage {
   async getRatingsByEntity(entityType: string, entityId: string): Promise<Rating[]> {
     return Array.from(this.ratings.values())
       .filter(r => r.entityType === entityType && r.entityId === entityId);
+  }
+
+  async getAllRatings(): Promise<Rating[]> {
+    return Array.from(this.ratings.values());
   }
 
   async updateEntityRating(entityType: string, entityId: string): Promise<void> {
@@ -317,14 +331,44 @@ export class MemStorage implements IStorage {
       }
     }
   }
+
+  // Delete methods
+  async deleteCanteen(id: string): Promise<void> {
+    // Delete all stalls in this canteen first
+    const stallsToDelete = Array.from(this.stalls.values()).filter(s => s.canteenId === id);
+    stallsToDelete.forEach(s => this.stalls.delete(s.id));
+    this.canteens.delete(id);
+  }
+
+  async deleteStall(id: string): Promise<void> {
+    const stall = this.stalls.get(id);
+    if (stall) {
+      this.stalls.delete(id);
+      const canteen = this.canteens.get(stall.canteenId);
+      if (canteen) {
+        canteen.totalStalls--;
+      }
+    }
+  }
+
+  async deleteVendor(id: string): Promise<void> {
+    // Delete all food listings for this vendor first
+    const listingsToDelete = Array.from(this.foodListings.values()).filter(l => l.vendorId === id);
+    listingsToDelete.forEach(l => this.foodListings.delete(l.id));
+    this.vendors.delete(id);
+  }
+
+  async deleteFoodListing(id: string): Promise<void> {
+    this.foodListings.delete(id);
+  }
 }
 
-// Database Storage using PostgreSQL + Drizzle ORM
+// Database Storage using MySQL + Drizzle ORM
 export class DbStorage implements IStorage {
   private db;
 
   constructor() {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = mysql.createPool(process.env.DATABASE_URL!);
     this.db = drizzle(pool);
   }
 
@@ -340,8 +384,9 @@ export class DbStorage implements IStorage {
 
   async createCanteen(insertCanteen: InsertCanteen): Promise<Canteen> {
     const id = randomUUID();
-    const results = await this.db.insert(canteens).values({ ...insertCanteen, id, totalStalls: 0 }).returning();
-    return results[0];
+    await this.db.insert(canteens).values({ ...insertCanteen, id, totalStalls: 0 });
+    const result = await this.getCanteen(id);
+    return result!;
   }
 
   // Stalls
@@ -360,12 +405,12 @@ export class DbStorage implements IStorage {
 
   async createStall(insertStall: InsertStall): Promise<Stall> {
     const id = randomUUID();
-    const results = await this.db.insert(stalls).values({ 
+    await this.db.insert(stalls).values({ 
       ...insertStall, 
       id,
       rating: "0",
       reviewCount: 0 
-    }).returning();
+    });
     
     // Update canteen stall count
     await this.db
@@ -373,22 +418,22 @@ export class DbStorage implements IStorage {
       .set({ totalStalls: sql`${canteens.totalStalls} + 1` })
       .where(eq(canteens.id, insertStall.canteenId));
     
-    return results[0];
+    const result = await this.getStall(id);
+    return result!;
   }
 
   async updateStallQueue(id: string, queueNumber: number, waitTime: number): Promise<Stall | undefined> {
-    const results = await this.db
+    await this.db
       .update(stalls)
       .set({ currentQueue: queueNumber, estimatedWaitTime: waitTime })
-      .where(eq(stalls.id, id))
-      .returning();
-    return results[0];
+      .where(eq(stalls.id, id));
+    return await this.getStall(id);
   }
 
   // Food Listings
   async getAllFoodListings(availableOnly: boolean = false): Promise<FoodListing[]> {
     if (availableOnly) {
-      return await this.db.select().from(foodListings).where(eq(foodListings.available, true));
+      return await this.db.select().from(foodListings).where(eq(foodListings.available, 1));
     }
     return await this.db.select().from(foodListings);
   }
@@ -404,21 +449,21 @@ export class DbStorage implements IStorage {
 
   async createFoodListing(insertListing: InsertFoodListing): Promise<FoodListing> {
     const id = randomUUID();
-    const results = await this.db.insert(foodListings).values({
+    await this.db.insert(foodListings).values({
       ...insertListing,
       id,
-      available: true,
-    }).returning();
-    return results[0];
+      available: 1,
+    });
+    const result = await this.getFoodListing(id);
+    return result!;
   }
 
   async updateFoodListingAvailability(id: string, available: boolean): Promise<FoodListing | undefined> {
-    const results = await this.db
+    await this.db
       .update(foodListings)
-      .set({ available })
-      .where(eq(foodListings.id, id))
-      .returning();
-    return results[0];
+      .set({ available: available ? 1 : 0 })
+      .where(eq(foodListings.id, id));
+    return await this.getFoodListing(id);
   }
 
   // Vendors
@@ -433,13 +478,14 @@ export class DbStorage implements IStorage {
 
   async createVendor(insertVendor: InsertVendor): Promise<Vendor> {
     const id = randomUUID();
-    const results = await this.db.insert(vendors).values({
+    await this.db.insert(vendors).values({
       ...insertVendor,
       id,
       rating: "0",
       reviewCount: 0,
-    }).returning();
-    return results[0];
+    });
+    const result = await this.getVendor(id);
+    return result!;
   }
 
   // Canteen Delete
@@ -480,15 +526,16 @@ export class DbStorage implements IStorage {
   // Ratings
   async createRating(insertRating: InsertRating): Promise<Rating> {
     const id = randomUUID();
-    const results = await this.db.insert(ratings).values({
+    await this.db.insert(ratings).values({
       ...insertRating,
       id,
-    }).returning();
+    });
     
     // Update entity rating
     await this.updateEntityRating(insertRating.entityType, insertRating.entityId);
     
-    return results[0];
+    const result = await this.db.select().from(ratings).where(eq(ratings.id, id));
+    return result[0];
   }
 
   async getRatingsByEntity(entityType: string, entityId: string): Promise<Rating[]> {
@@ -506,18 +553,19 @@ export class DbStorage implements IStorage {
     const entityRatings = await this.getRatingsByEntity(entityType, entityId);
     if (entityRatings.length === 0) return;
 
-    // Keep numeric value - Drizzle will handle decimal conversion
+    // Calculate average rating
     const avgRating = entityRatings.reduce((sum, r) => sum + r.rating, 0) / entityRatings.length;
+    const ratingStr = avgRating.toFixed(2);
     
     if (entityType === 'stall') {
       await this.db
         .update(stalls)
-        .set({ rating: sql`${avgRating}::numeric(3,2)`, reviewCount: entityRatings.length })
+        .set({ rating: ratingStr, reviewCount: entityRatings.length })
         .where(eq(stalls.id, entityId));
     } else if (entityType === 'vendor') {
       await this.db
         .update(vendors)
-        .set({ rating: sql`${avgRating}::numeric(3,2)`, reviewCount: entityRatings.length })
+        .set({ rating: ratingStr, reviewCount: entityRatings.length })
         .where(eq(vendors.id, entityId));
     }
   }
@@ -631,7 +679,7 @@ export class DbStorage implements IStorage {
         pickupTimeStart: "17:00",
         pickupTimeEnd: "19:30",
         imageUrl: item.img,
-        available: true,
+        available: 1,
       });
     }
 
