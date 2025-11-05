@@ -28,6 +28,11 @@
            data-testid="link-vendor-portal">
           Vendor Portal
         </a>
+        <a href="/admin" 
+           class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'admin' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+           data-testid="link-admin">
+          Admin
+        </a>
       </div>
 
       <!-- Mobile menu button -->
@@ -49,8 +54,12 @@
         Food Rescue
       </a>
       <a href="/vendor-portal" 
-         class="block px-4 py-2 rounded-lg text-sm font-medium <%= activePage === 'vendor' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+         class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'vendor' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
         Vendor Portal
+      </a>
+      <a href="/admin" 
+         class="block px-4 py-2 rounded-lg text-sm font-medium <%= activePage === 'admin' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+        Admin
       </a>
     </div>
   </div>

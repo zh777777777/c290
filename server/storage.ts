@@ -20,6 +20,7 @@ export interface IStorage {
   getAllCanteens(): Promise<Canteen[]>;
   getCanteen(id: string): Promise<Canteen | undefined>;
   createCanteen(canteen: InsertCanteen): Promise<Canteen>;
+  deleteCanteen(id: string): Promise<void>;
   
   // Stalls
   getAllStalls(): Promise<Stall[]>;
@@ -27,6 +28,7 @@ export interface IStorage {
   getStall(id: string): Promise<Stall | undefined>;
   createStall(stall: InsertStall): Promise<Stall>;
   updateStallQueue(id: string, queueNumber: number, waitTime: number): Promise<Stall | undefined>;
+  deleteStall(id: string): Promise<void>;
   
   // Food Listings
   getAllFoodListings(availableOnly?: boolean): Promise<FoodListing[]>;
@@ -34,16 +36,19 @@ export interface IStorage {
   getFoodListingsByVendor(vendorId: string): Promise<FoodListing[]>;
   createFoodListing(listing: InsertFoodListing): Promise<FoodListing>;
   updateFoodListingAvailability(id: string, available: boolean): Promise<FoodListing | undefined>;
+  deleteFoodListing(id: string): Promise<void>;
   
   // Vendors
   getAllVendors(): Promise<Vendor[]>;
   getVendor(id: string): Promise<Vendor | undefined>;
   createVendor(vendor: InsertVendor): Promise<Vendor>;
+  deleteVendor(id: string): Promise<void>;
   
   // Ratings
   createRating(rating: InsertRating): Promise<Rating>;
   getRatingsByEntity(entityType: string, entityId: string): Promise<Rating[]>;
   updateEntityRating(entityType: string, entityId: string): Promise<void>;
+  getAllRatings(): Promise<Rating[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -437,6 +442,41 @@ export class DbStorage implements IStorage {
     return results[0];
   }
 
+  // Canteen Delete
+  async deleteCanteen(id: string): Promise<void> {
+    // Delete all stalls in this canteen first
+    await this.db.delete(stalls).where(eq(stalls.canteenId, id));
+    // Delete the canteen
+    await this.db.delete(canteens).where(eq(canteens.id, id));
+  }
+
+  // Stall Delete
+  async deleteStall(id: string): Promise<void> {
+    const stall = await this.getStall(id);
+    if (stall) {
+      // Delete the stall
+      await this.db.delete(stalls).where(eq(stalls.id, id));
+      // Update canteen stall count
+      await this.db
+        .update(canteens)
+        .set({ totalStalls: sql`${canteens.totalStalls} - 1` })
+        .where(eq(canteens.id, stall.canteenId));
+    }
+  }
+
+  // Vendor Delete
+  async deleteVendor(id: string): Promise<void> {
+    // Delete all food listings for this vendor first
+    await this.db.delete(foodListings).where(eq(foodListings.vendorId, id));
+    // Delete the vendor
+    await this.db.delete(vendors).where(eq(vendors.id, id));
+  }
+
+  // Food Listing Delete
+  async deleteFoodListing(id: string): Promise<void> {
+    await this.db.delete(foodListings).where(eq(foodListings.id, id));
+  }
+
   // Ratings
   async createRating(insertRating: InsertRating): Promise<Rating> {
     const id = randomUUID();
@@ -456,6 +496,10 @@ export class DbStorage implements IStorage {
       .select()
       .from(ratings)
       .where(and(eq(ratings.entityType, entityType), eq(ratings.entityId, entityId)));
+  }
+
+  async getAllRatings(): Promise<Rating[]> {
+    return await this.db.select().from(ratings);
   }
 
   async updateEntityRating(entityType: string, entityId: string): Promise<void> {

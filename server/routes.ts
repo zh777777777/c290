@@ -109,6 +109,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Dashboard
+  app.get("/admin", async (req, res) => {
+    try {
+      const canteens = await storage.getAllCanteens();
+      const stalls = await storage.getAllStalls();
+      const vendors = await storage.getAllVendors();
+      const listings = await storage.getAllFoodListings();
+      const ratings = await storage.getAllRatings();
+
+      res.render("admin", {
+        title: "Admin Dashboard - Food Rescue SG",
+        canteens,
+        stalls,
+        vendors,
+        listings,
+        stats: {
+          totalCanteens: canteens.length,
+          totalStalls: stalls.length,
+          totalVendors: vendors.length,
+          activeListings: listings.filter(l => l.available).length,
+          totalRatings: ratings.length,
+        },
+        activePage: "admin",
+      });
+    } catch (error) {
+      console.error("Error rendering admin dashboard:", error);
+      res.status(500).send("Error loading admin dashboard");
+    }
+  });
+
   // ===== API ROUTES =====
 
   // Get all stalls for a canteen
@@ -223,6 +253,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to simulate update" });
+    }
+  });
+
+  // ===== ADMIN API ROUTES =====
+
+  // Get all canteens
+  app.get("/api/canteens", async (req, res) => {
+    try {
+      const canteens = await storage.getAllCanteens();
+      res.json(canteens);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch canteens" });
+    }
+  });
+
+  // Create canteen
+  app.post("/api/canteens", async (req, res) => {
+    try {
+      const { name, location } = req.body;
+      const canteen = await storage.createCanteen({ name, location });
+      res.json(canteen);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid canteen data" });
+    }
+  });
+
+  // Delete canteen
+  app.delete("/api/canteens/:id", async (req, res) => {
+    try {
+      await storage.deleteCanteen(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete canteen" });
+    }
+  });
+
+  // Create stall
+  app.post("/api/stalls", async (req, res) => {
+    try {
+      const validatedData = insertStallSchema.parse(req.body);
+      const stall = await storage.createStall(validatedData);
+      res.json(stall);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid stall data" });
+    }
+  });
+
+  // Delete stall
+  app.delete("/api/stalls/:id", async (req, res) => {
+    try {
+      await storage.deleteStall(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete stall" });
+    }
+  });
+
+  // Delete vendor
+  app.delete("/api/vendors/:id", async (req, res) => {
+    try {
+      await storage.deleteVendor(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete vendor" });
+    }
+  });
+
+  // Delete food listing
+  app.delete("/api/food-listings/:id", async (req, res) => {
+    try {
+      await storage.deleteFoodListing(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete food listing" });
     }
   });
 
