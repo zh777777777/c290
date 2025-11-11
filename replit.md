@@ -74,6 +74,13 @@ Preferred communication style: Simple, everyday language.
 3. **Food Listings** - Surplus food items with pricing and availability
 4. **Vendors** - Food rescue marketplace vendors with ratings
 5. **Ratings** - User reviews for stalls and vendors
+6. **Users** - Student/consumer accounts with profile information
+7. **UserPreferences** - Food preferences and recommendation parameters
+8. **CampusBlocks** - Campus locations with GPS coordinates
+9. **DeliveryRequests** - Food delivery orders with status tracking
+10. **DeliveryPersons** - Student delivery providers with availability
+11. **Earnings** - Delivery earnings and transaction history
+12. **Vouchers** - Reward vouchers for platform usage
 
 **Schema Features:**
 - UUID-based primary keys for distributed systems
@@ -133,20 +140,32 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**November 5, 2025 - Latest Update**
+**November 11, 2025 - Smart Stall Recommendations**
+- **Smart Recommendation System**: Personalized stall suggestions based on user preferences and location
+  - Weighted algorithm: 35% food preferences, 25% proximity, 20% queue time, 20% ratings
+  - Hard filters for max queue time (30 min) and walking distance (500m)
+  - Haversine distance calculation for GPS-based proximity
+  - Jaccard similarity for cuisine preference matching
+  - Visual score breakdowns with colored progress bars
+  - Confidence levels based on available data
+- **Campus Location System**: 7 campus blocks with GPS coordinates
+  - Block selection with real-time location updates
+  - Distance calculations from user location to canteens
+  - Walking distance enforcement (stalls >500m filtered out)
+- **User Preferences Management**: Customizable food preferences
+  - Cuisine type selection (Chinese, Western, Japanese, etc.)
+  - Dietary restrictions support
+  - Queue and distance tolerance settings
+- **API Endpoints**: Complete REST API for recommendations
+  - GET /api/recommendations/:userId - Ranked stall recommendations
+  - GET /api/campus-blocks - All campus locations
+  - GET /api/users/:userId - User profile data
+  - PATCH /api/users/:userId/location - Update user location
+  - PATCH /api/users/:userId/preferences - Update preferences
+- **Navigation Integration**: Added "Recommendations" link to all pages
+
+**November 5, 2025 - Initial Features**
 - **Queue Monitor Real-Time Updates**: Implemented live countdown for wait times
-  - Wait times now decrease every second from initial values
-  - Immediate update on page load for accurate display
-  - Visual indicator (green, bold) when wait time reaches zero
-  - Efficient single-interval update for all stalls
 - **Food Rescue Reserve Functionality**: Full reservation system implemented
-  - "Reserve Now" buttons mark listings as unavailable via API
-  - Smooth card removal with CSS fadeOutScale animation
-  - Toast notification system replaces blocking alerts
-  - Auto-updates listing grid when items are reserved
-  - Proper error handling with user feedback
 - Fixed WebSocket connectivity issue for Neon PostgreSQL database
-- Successfully installed `ws` package required for Neon serverless WebSocket connections
-- Configured `neonConfig.webSocketConstructor` to use ws module
 - Application now fully functional with PostgreSQL database persistence
-- Admin dashboard operational with all CRUD operations working
