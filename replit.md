@@ -140,6 +140,31 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**November 11, 2025 - Campus Food Delivery Order System**
+- **Order Food with Delivery**: Complete food ordering system with campus delivery
+  - Browse all canteen stalls with queue status, ratings, and cuisine types
+  - Place orders with items and food total
+  - Select campus delivery location (7 campus blocks)
+  - Peak hour detection (11:30-13:30, 17:30-19:30 SGT): $2.00 delivery fee vs $1.50 off-peak
+  - Visual peak hour notice when applicable
+- **Server-Side Security**:
+  - Server-authoritative pricing: All delivery fees calculated server-side (cannot be tampered)
+  - Input validation: Food total range ($0.01-$1000), stall ID, delivery block existence checks
+  - XSS prevention: HTML entity encoding for all user inputs (foodItems, locations)
+  - Max length enforcement: 500 character limit on text inputs
+  - Peak hour determined from server time only (UTC+8 for Singapore)
+- **API Endpoints**:
+  - POST /api/delivery-requests - Create delivery order with server-calculated pricing
+  - GET /api/delivery-requests/pending - List pending deliveries (for delivery persons)
+  - GET /api/delivery-requests/customer/:customerId - Customer's order history
+  - PATCH /api/delivery-requests/:id/accept - Accept delivery request
+  - PATCH /api/delivery-requests/:id/status - Update delivery status
+- **Navigation Integration**: Added "Order Food" link to main navigation
+- **Known Limitations** (documented for future):
+  - No authentication (uses demo_user account)
+  - No CSRF protection
+  - No rate limiting
+
 **November 11, 2025 - Smart Stall Recommendations**
 - **Smart Recommendation System**: Personalized stall suggestions based on user preferences and location
   - Weighted algorithm: 35% food preferences, 25% proximity, 20% queue time, 20% ratings
