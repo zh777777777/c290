@@ -165,6 +165,48 @@ Preferred communication style: Simple, everyday language.
   - No CSRF protection
   - No rate limiting
 
+**November 11, 2025 - Delivery Hub & Earnings System**
+- **Delivery Hub Dashboard**: Complete platform for student delivery persons
+  - Registration workflow with phone number and campus block selection
+  - Availability toggle (Online/Offline) to control job visibility
+  - Three-tab dashboard: Available Jobs, My Deliveries, Earnings & Rewards
+  - Job listings display stall details, delivery fees, and peak hour badges
+- **Delivery Workflow**: Full lifecycle management
+  - Status progression: pending → accepted → picked_up → delivering → delivered
+  - One-click status updates with confirmation dialogs
+  - Visual status indicators and completion messages
+  - Server-side status validation and logging
+- **Automatic Earnings Calculation**: Server-authoritative payout system
+  - Triggered automatically when delivery marked as "delivered"
+  - Base Earnings: Delivery fee from original order
+  - Peak Hour Bonus: +$0.50 during peak hours (11:30-13:30, 17:30-19:30 SGT)
+  - Creates DeliveryEarnings record with breakdown (baseEarning, peakBonus, totalEarning)
+  - Increments user.totalDeliveries count automatically
+  - Error isolation: Status updates succeed even if earnings creation fails
+- **Earnings Dashboard**: Transparent earnings tracking
+  - Total Earnings display (aggregated from all deliveries)
+  - Completed Deliveries counter
+  - Earnings History with per-delivery breakdown
+  - Peak hour bonuses highlighted in orange
+  - Voucher Balance display (ready for milestone rewards)
+- **Security & Data Integrity**:
+  - Server-side earnings calculation prevents client tampering
+  - Decimal precision for monetary values
+  - Database schema field alignment (baseEarning, not baseAmount)
+  - Proper storage method usage (incrementUserDeliveries)
+- **Bug Fixes Applied**:
+  - Fixed schema field name mismatch (baseAmount → baseEarning)
+  - Fixed storage method call (updateUser → incrementUserDeliveries)
+  - Added missing 'delivering' status to validation array
+- **Future Enhancements** (architect recommendations):
+  - Add idempotency guard to prevent duplicate payouts
+  - Extend automated test coverage for negative paths
+  - Implement voucher milestone rewards
+- **Key Implementation Files**:
+  - server/routes.ts: Earnings calculation in PATCH /api/delivery-requests/:id/status
+  - server/storage.ts: incrementUserDeliveries and createDeliveryEarnings methods
+  - views/delivery-hub.ejs: Dashboard UI with tabs and earnings display
+
 **November 11, 2025 - Smart Stall Recommendations**
 - **Smart Recommendation System**: Personalized stall suggestions based on user preferences and location
   - Weighted algorithm: 35% food preferences, 25% proximity, 20% queue time, 20% ratings
