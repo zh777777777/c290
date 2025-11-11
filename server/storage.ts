@@ -4,7 +4,14 @@ import {
   type FoodListing, type InsertFoodListing,
   type Vendor, type InsertVendor,
   type Rating, type InsertRating,
-  canteens, stalls, foodListings, vendors, ratings
+  type User, type InsertUser,
+  type UserPreferences, type InsertUserPreferences,
+  type CampusBlock, type InsertCampusBlock,
+  type DeliveryRequest, type InsertDeliveryRequest,
+  type DeliveryEarnings, type InsertDeliveryEarnings,
+  type Voucher, type InsertVoucher,
+  canteens, stalls, foodListings, vendors, ratings,
+  users, userPreferences, campusBlocks, deliveryRequests, deliveryEarnings, vouchers
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/neon-serverless";
@@ -49,6 +56,46 @@ export interface IStorage {
   getRatingsByEntity(entityType: string, entityId: string): Promise<Rating[]>;
   updateEntityRating(entityType: string, entityId: string): Promise<void>;
   getAllRatings(): Promise<Rating[]>;
+  
+  // Users
+  createUser(user: InsertUser): Promise<User>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserLocation(userId: string, blockId: string): Promise<User | undefined>;
+  toggleDeliveryAvailability(userId: string, available: boolean): Promise<User | undefined>;
+  updateUserVoucherBalance(userId: string, amount: string): Promise<User | undefined>;
+  incrementUserDeliveries(userId: string): Promise<User | undefined>;
+  
+  // User Preferences
+  createUserPreferences(prefs: InsertUserPreferences): Promise<UserPreferences>;
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  updateUserPreferences(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences | undefined>;
+  
+  // Campus Blocks
+  getAllCampusBlocks(): Promise<CampusBlock[]>;
+  getCampusBlock(id: string): Promise<CampusBlock | undefined>;
+  createCampusBlock(block: InsertCampusBlock): Promise<CampusBlock>;
+  
+  // Delivery Requests
+  createDeliveryRequest(request: InsertDeliveryRequest): Promise<DeliveryRequest>;
+  getDeliveryRequest(id: string): Promise<DeliveryRequest | undefined>;
+  getPendingDeliveryRequests(): Promise<DeliveryRequest[]>;
+  getDeliveryRequestsByCustomer(customerId: string): Promise<DeliveryRequest[]>;
+  getDeliveryRequestsByDeliveryPerson(deliveryPersonId: string): Promise<DeliveryRequest[]>;
+  acceptDeliveryRequest(requestId: string, deliveryPersonId: string): Promise<DeliveryRequest | undefined>;
+  updateDeliveryStatus(requestId: string, status: string): Promise<DeliveryRequest | undefined>;
+  rateDelivery(requestId: string, rating: number, review?: string): Promise<DeliveryRequest | undefined>;
+  
+  // Delivery Earnings
+  createDeliveryEarnings(earnings: InsertDeliveryEarnings): Promise<DeliveryEarnings>;
+  getDeliveryPersonEarnings(deliveryPersonId: string): Promise<DeliveryEarnings[]>;
+  getTotalEarnings(deliveryPersonId: string): Promise<number>;
+  
+  // Vouchers
+  createVoucher(voucher: InsertVoucher): Promise<Voucher>;
+  getUserVouchers(userId: string, unusedOnly?: boolean): Promise<Voucher[]>;
+  useVoucher(voucherId: string): Promise<Voucher | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -683,7 +730,227 @@ export class DbStorage implements IStorage {
       });
     }
 
+    // Seed campus blocks
+    const blockData = [
+      { name: "Block A (North Wing)", shortName: "BLK-A", nearestCanteenId: "canteen-1", lat: 1.2966, lng: 103.7764 },
+      { name: "Block B (South Wing)", shortName: "BLK-B", nearestCanteenId: "canteen-2", lat: 1.2956, lng: 103.7774 },
+      { name: "Block C (East Wing)", shortName: "BLK-C", nearestCanteenId: "canteen-3", lat: 1.2976, lng: 103.7784 },
+      { name: "Block D (West Wing)", shortName: "BLK-D", nearestCanteenId: "canteen-4", lat: 1.2946, lng: 103.7754 },
+      { name: "Engineering Building", shortName: "ENG", nearestCanteenId: "canteen-5", lat: 1.2986, lng: 103.7794 },
+      { name: "Library", shortName: "LIB", nearestCanteenId: "canteen-5", lat: 1.2996, lng: 103.7804 },
+      { name: "Science Block", shortName: "SCI", nearestCanteenId: "canteen-1", lat: 1.3006, lng: 103.7814 },
+    ];
+
+    for (let i = 0; i < blockData.length; i++) {
+      const id = `block-${i + 1}`;
+      const block = blockData[i];
+      await this.db.insert(campusBlocks).values({
+        id,
+        name: block.name,
+        shortName: block.shortName,
+        nearestCanteenId: block.nearestCanteenId,
+        latitude: block.lat.toFixed(7),
+        longitude: block.lng.toFixed(7),
+      });
+    }
+
     console.log("Database seeding completed!");
+  }
+
+  // Users
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const results = await this.db.insert(users).values({ ...insertUser, id }).returning();
+    return results[0];
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const results = await this.db.select().from(users).where(eq(users.id, id));
+    return results[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const results = await this.db.select().from(users).where(eq(users.username, username));
+    return results[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const results = await this.db.select().from(users).where(eq(users.email, email));
+    return results[0];
+  }
+
+  async updateUserLocation(userId: string, blockId: string): Promise<User | undefined> {
+    const results = await this.db
+      .update(users)
+      .set({ currentBlockId: blockId })
+      .where(eq(users.id, userId))
+      .returning();
+    return results[0];
+  }
+
+  async toggleDeliveryAvailability(userId: string, available: boolean): Promise<User | undefined> {
+    const results = await this.db
+      .update(users)
+      .set({ deliveryAvailable: available })
+      .where(eq(users.id, userId))
+      .returning();
+    return results[0];
+  }
+
+  async updateUserVoucherBalance(userId: string, amount: string): Promise<User | undefined> {
+    const results = await this.db
+      .update(users)
+      .set({ voucherBalance: amount })
+      .where(eq(users.id, userId))
+      .returning();
+    return results[0];
+  }
+
+  async incrementUserDeliveries(userId: string): Promise<User | undefined> {
+    const results = await this.db
+      .update(users)
+      .set({ totalDeliveries: sql`${users.totalDeliveries} + 1` })
+      .where(eq(users.id, userId))
+      .returning();
+    return results[0];
+  }
+
+  // User Preferences
+  async createUserPreferences(insertPrefs: InsertUserPreferences): Promise<UserPreferences> {
+    const id = randomUUID();
+    const results = await this.db.insert(userPreferences).values({ ...insertPrefs, id }).returning();
+    return results[0];
+  }
+
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const results = await this.db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+    return results[0];
+  }
+
+  async updateUserPreferences(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences | undefined> {
+    const results = await this.db
+      .update(userPreferences)
+      .set({ ...prefs, updatedAt: new Date() })
+      .where(eq(userPreferences.userId, userId))
+      .returning();
+    return results[0];
+  }
+
+  // Campus Blocks
+  async getAllCampusBlocks(): Promise<CampusBlock[]> {
+    return await this.db.select().from(campusBlocks);
+  }
+
+  async getCampusBlock(id: string): Promise<CampusBlock | undefined> {
+    const results = await this.db.select().from(campusBlocks).where(eq(campusBlocks.id, id));
+    return results[0];
+  }
+
+  async createCampusBlock(insertBlock: InsertCampusBlock): Promise<CampusBlock> {
+    const id = randomUUID();
+    const results = await this.db.insert(campusBlocks).values({ ...insertBlock, id }).returning();
+    return results[0];
+  }
+
+  // Delivery Requests
+  async createDeliveryRequest(insertRequest: InsertDeliveryRequest): Promise<DeliveryRequest> {
+    const id = randomUUID();
+    const results = await this.db.insert(deliveryRequests).values({ ...insertRequest, id }).returning();
+    return results[0];
+  }
+
+  async getDeliveryRequest(id: string): Promise<DeliveryRequest | undefined> {
+    const results = await this.db.select().from(deliveryRequests).where(eq(deliveryRequests.id, id));
+    return results[0];
+  }
+
+  async getPendingDeliveryRequests(): Promise<DeliveryRequest[]> {
+    return await this.db.select().from(deliveryRequests).where(eq(deliveryRequests.status, 'pending'));
+  }
+
+  async getDeliveryRequestsByCustomer(customerId: string): Promise<DeliveryRequest[]> {
+    return await this.db.select().from(deliveryRequests).where(eq(deliveryRequests.customerId, customerId));
+  }
+
+  async getDeliveryRequestsByDeliveryPerson(deliveryPersonId: string): Promise<DeliveryRequest[]> {
+    return await this.db.select().from(deliveryRequests).where(eq(deliveryRequests.deliveryPersonId, deliveryPersonId));
+  }
+
+  async acceptDeliveryRequest(requestId: string, deliveryPersonId: string): Promise<DeliveryRequest | undefined> {
+    const results = await this.db
+      .update(deliveryRequests)
+      .set({ 
+        deliveryPersonId,
+        status: 'accepted',
+        acceptedAt: new Date()
+      })
+      .where(eq(deliveryRequests.id, requestId))
+      .returning();
+    return results[0];
+  }
+
+  async updateDeliveryStatus(requestId: string, status: string): Promise<DeliveryRequest | undefined> {
+    const updateData: any = { status };
+    if (status === 'delivered') {
+      updateData.deliveredAt = new Date();
+    }
+    const results = await this.db
+      .update(deliveryRequests)
+      .set(updateData)
+      .where(eq(deliveryRequests.id, requestId))
+      .returning();
+    return results[0];
+  }
+
+  async rateDelivery(requestId: string, rating: number, review?: string): Promise<DeliveryRequest | undefined> {
+    const results = await this.db
+      .update(deliveryRequests)
+      .set({ customerRating: rating, customerReview: review || null })
+      .where(eq(deliveryRequests.id, requestId))
+      .returning();
+    return results[0];
+  }
+
+  // Delivery Earnings
+  async createDeliveryEarnings(insertEarnings: InsertDeliveryEarnings): Promise<DeliveryEarnings> {
+    const id = randomUUID();
+    const results = await this.db.insert(deliveryEarnings).values({ ...insertEarnings, id }).returning();
+    return results[0];
+  }
+
+  async getDeliveryPersonEarnings(deliveryPersonId: string): Promise<DeliveryEarnings[]> {
+    return await this.db.select().from(deliveryEarnings).where(eq(deliveryEarnings.deliveryPersonId, deliveryPersonId));
+  }
+
+  async getTotalEarnings(deliveryPersonId: string): Promise<number> {
+    const earnings = await this.getDeliveryPersonEarnings(deliveryPersonId);
+    return earnings.reduce((sum, e) => sum + parseFloat(e.totalEarning), 0);
+  }
+
+  // Vouchers
+  async createVoucher(insertVoucher: InsertVoucher): Promise<Voucher> {
+    const id = randomUUID();
+    const results = await this.db.insert(vouchers).values({ ...insertVoucher, id }).returning();
+    return results[0];
+  }
+
+  async getUserVouchers(userId: string, unusedOnly: boolean = false): Promise<Voucher[]> {
+    if (unusedOnly) {
+      return await this.db
+        .select()
+        .from(vouchers)
+        .where(and(eq(vouchers.userId, userId), eq(vouchers.used, false)));
+    }
+    return await this.db.select().from(vouchers).where(eq(vouchers.userId, userId));
+  }
+
+  async useVoucher(voucherId: string): Promise<Voucher | undefined> {
+    const results = await this.db
+      .update(vouchers)
+      .set({ used: true, usedAt: new Date() })
+      .where(eq(vouchers.id, voucherId))
+      .returning();
+    return results[0];
   }
 }
 
