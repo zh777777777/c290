@@ -526,6 +526,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Accept a delivery request (for delivery person)
+  app.patch("/api/delivery-requests/:id/accept", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get demo user (will be replaced with actual auth later)
+      const user = await storage.getUserByUsername("demo_user");
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+      
+      if (!user.isDeliveryPerson) {
+        return res.status(403).json({ error: "User is not registered as a delivery person" });
+      }
+      
+      // Accept the delivery request
+      const updatedRequest = await storage.acceptDeliveryRequest(id, user.id);
+      
+      if (!updatedRequest) {
+        return res.status(404).json({ error: "Delivery request not found" });
+      }
+      
+      res.json({ success: true, request: updatedRequest });
+    } catch (error) {
+      console.error("Error accepting delivery request:", error);
+      res.status(500).json({ error: "Failed to accept delivery request" });
+    }
+  });
+
+  // Update delivery request status
+  app.patch("/api/delivery-requests/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      // Validate status
+      const validStatuses = ['pending', 'accepted', 'picked_up', 'delivering', 'delivered', 'cancelled'];
+      if (!status || !validStatuses.includes(status)) {
+        console.log(`[Status Update] Invalid status: ${status}`);
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+      
+      console.log(`[Status Update] Updating request ${id} to status: ${status}`);
+      
+      // Update the status
+      const updatedRequest = await storage.updateDeliveryStatus(id, status);
+      
+      if (!updatedRequest) {
+        console.log(`[Status Update] Request not found: ${id}`);
+        return res.status(404).json({ error: "Delivery request not found" });
+      }
+      
+      console.log(`[Status Update] SUCCESS! Request ${id} updated to ${updatedRequest.status}`);
+      res.json({ success: true, request: updatedRequest });
+    } catch (error) {
+      console.error("Error updating delivery status:", error);
+      res.status(500).json({ error: "Failed to update delivery status" });
+    }
+  });
+
   // Register as delivery person
   app.post("/api/users/register-delivery-person", async (req, res) => {
     try {
