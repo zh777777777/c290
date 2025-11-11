@@ -1,0 +1,208 @@
+# Campus Food Delivery System - User Requirements & Pricing Model
+
+## Document Information
+- **Date**: November 11, 2025
+- **Version**: 1.0
+- **Purpose**: User requirements and pricing specifications for campus food delivery platform
+
+---
+
+## User Requirements
+
+### UR-1: Location-Based User Identification
+**As a** student user,  
+**I want to** share my current location on campus,  
+**So that** the system can identify which block/building I am in and show me relevant nearby food options.
+
+**Acceptance Criteria:**
+- User can enable location services within the app
+- System accurately identifies campus block/building
+- Location updates automatically when user moves
+- Privacy controls allow users to turn off location sharing
+
+---
+
+### UR-2: Smart Stall Recommendation System
+**As a** student user,  
+**I want to** select my food preferences and cravings,  
+**So that** the system's algorithm can recommend the nearest stalls with the shortest queues and best match for my preferences.
+
+**Acceptance Criteria:**
+- User can input/select food preferences (cuisine type, dietary restrictions, cravings)
+- Algorithm considers: proximity, queue length, food type match
+- Recommendations are ranked by relevance
+- Real-time queue information is displayed
+- User can filter and sort recommendations
+
+---
+
+### UR-3: Peer-to-Peer Campus Food Delivery
+**As a** student user,  
+**I want to** request food delivery from other students on campus,  
+**So that** I can receive my food without leaving my location (e.g., during study sessions, classes).
+
+**Acceptance Criteria:**
+- User can select delivery option when ordering
+- User can specify exact delivery location on campus
+- User receives real-time updates on delivery status
+- User can track delivery person's location
+- User can rate and review delivery experience
+
+---
+
+**As a** student delivery person,  
+**I want to** accept food delivery requests within campus,  
+**So that** I can earn money/vouchers while moving between locations on campus.
+
+**Acceptance Criteria:**
+- Delivery person can toggle availability status
+- System shows available delivery requests with pickup/dropoff locations
+- Delivery person can accept/reject requests
+- Navigation to pickup and dropoff points is provided
+- Earnings and voucher balance are tracked in profile
+- Delivery person can view delivery history and statistics
+
+---
+
+## Pricing Model
+
+### Context
+- **Average food price range**: $4.00 - $7.00
+- **Target market**: Campus students (price-sensitive)
+- **Competition**: Traditional campus dining, external food delivery apps
+
+### Delivery Fees (Paid by Customer)
+
+| Fee Type | Amount | Conditions |
+|----------|--------|------------|
+| Standard delivery fee | $1.50 | All orders |
+| Peak hours surcharge | +$0.50 | 12:00-14:00, 18:00-20:00 |
+| **Total customer pays** | **$1.50-$2.00** | Plus food cost |
+
+---
+
+### Earnings for Delivery Person
+
+#### Per-Delivery Earnings
+- **Base earning**: $1.50 per delivery
+- **Peak bonus**: +$0.50 during peak hours (12-2pm, 6-8pm)
+- **Potential per delivery**: $1.50 - $2.00
+
+#### Incentive Structure (Vouchers)
+| Achievement | Reward |
+|-------------|--------|
+| 5 deliveries per week | $5 food voucher |
+| 10 deliveries per week | $12 food voucher |
+| Top deliverer of the month | $30 food voucher + recognition badge |
+
+**Note**: Vouchers can be used at any participating campus food stall.
+
+---
+
+### Shop Owner Costs
+
+Shop owners can choose between two pricing models:
+
+#### Option 1: Percentage Commission
+- **Commission rate**: 12% of food price
+- **Cost per order**: $0.48 - $0.84 (for $4-$7 meals)
+- **Best for**: Higher-priced items, premium stalls
+
+#### Option 2: Flat Fee
+- **Flat rate**: $1.00 per order
+- **Best for**: Lower-priced items, high-volume stalls
+
+#### Optional Add-ons
+- **Featured listing**: $20/month (appears at top of recommendations)
+- **Premium analytics**: $10/month (detailed sales insights)
+
+---
+
+## Financial Example Breakdown
+
+### Scenario: $6.00 Meal, Standard Delivery
+
+**Customer Payment:**
+- Food cost: $6.00
+- Delivery fee: $1.50
+- **Total paid by customer**: **$7.50**
+
+**Delivery Person Earnings:**
+- Base delivery fee: $1.50
+- Potential vouchers: Variable based on weekly deliveries
+- **Direct earning**: **$1.50**
+
+**Shop Owner Receives:**
+- Food revenue: $6.00
+- Platform commission (12%): -$0.72
+- **Net received**: **$5.28**
+
+**Platform Revenue:**
+- Commission from shop: $0.72
+- Delivery fee: $1.50
+- **Total platform revenue**: **$2.22**
+
+---
+
+## Technical Considerations
+
+### Location Services
+- GPS accuracy required: ±10 meters
+- Indoor positioning for multi-story buildings
+- Campus map integration with building/block labels
+
+### Matching Algorithm Priorities
+1. Food preference match (weighted 40%)
+2. Proximity to user location (weighted 30%)
+3. Current queue length (weighted 20%)
+4. Stall rating/popularity (weighted 10%)
+
+### Real-Time Features Required
+- Queue length updates
+- Delivery person location tracking
+- Order status notifications
+- Live stall availability
+
+---
+
+## Success Metrics
+
+### User Adoption
+- 30% of campus students registered within 3 months
+- Average 3 orders per active user per week
+
+### Delivery Network
+- 10% of students signed up as delivery persons
+- Average delivery time: <15 minutes
+- 95% delivery success rate
+
+### Financial Targets
+- Platform profitability within 6 months
+- Average order value: $6.50
+- 20% of orders include delivery option
+
+---
+
+## Questions for Developer
+
+1. What technology stack is recommended for real-time location tracking?
+2. How will the system handle concurrent delivery requests?
+3. What payment gateway integration is suggested for campus environment?
+4. How will we verify that delivery persons are legitimate students?
+5. What offline functionality is needed for areas with poor connectivity?
+
+---
+
+## Next Steps
+
+- [ ] Finalize technical architecture
+- [ ] Design UI/UX mockups
+- [ ] Develop MVP with core features (UR-1, UR-2)
+- [ ] Beta test with limited user group
+- [ ] Roll out peer-to-peer delivery feature (UR-3)
+- [ ] Onboard food stall partners
+- [ ] Launch campus-wide
+
+---
+
+**End of Document**
