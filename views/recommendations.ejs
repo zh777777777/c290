@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    h1, h2, h3, h4 {
+      font-family: 'DM Sans', sans-serif;
+    }
+    .score-bar {
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Navigation -->
+  <%- include('partials/nav') %>
+
+  <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Header Section -->
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold text-gray-900 mb-2">Smart Recommendations</h1>
+      <p class="text-gray-600">Personalized food stall recommendations based on your preferences and location</p>
+    </div>
+
+    <!-- User Context Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <!-- Current Location Card -->
+      <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">📍 Your Location</h2>
+        <div class="space-y-4">
+          <div id="current-location-display" class="flex items-center justify-between">
+            <% if (currentBlock) { %>
+              <div>
+                <p class="text-gray-900 font-medium"><%= currentBlock.name %></p>
+                <p class="text-sm text-gray-500"><%= currentBlock.shortName %></p>
+              </div>
+            <% } else { %>
+              <p class="text-gray-500 italic">No location set</p>
+            <% } %>
+            <button 
+              data-testid="button-change-location"
+              onclick="toggleLocationSelector()" 
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+              Change
+            </button>
+          </div>
+          
+          <!-- Location Selector (Hidden by default) -->
+          <div id="location-selector" class="hidden space-y-2">
+            <label class="block text-sm font-medium text-gray-700">Select your campus block:</label>
+            <select 
+              data-testid="select-campus-block"
+              id="block-selector" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="">Choose a block...</option>
+              <% blocks.forEach(block => { %>
+                <option value="<%= block.id %>" <%= currentBlock && currentBlock.id === block.id ? 'selected' : '' %>>
+                  <%= block.name %> (<%= block.shortName %>)
+                </option>
+              <% }); %>
+            </select>
+            <div class="flex gap-2">
+              <button 
+                data-testid="button-update-location"
+                onclick="updateLocation()" 
+                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                Update Location
+              </button>
+              <button 
+                data-testid="button-cancel-location"
+                onclick="toggleLocationSelector()" 
+                class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferences Card -->
+      <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">⚙️ Your Preferences</h2>
+        <div class="space-y-3">
+          <% if (preferences) { %>
+            <div>
+              <p class="text-sm text-gray-500">Cuisine Types:</p>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <% if (preferences.cuisineTypes && preferences.cuisineTypes.length > 0) { %>
+                  <% preferences.cuisineTypes.forEach(cuisine => { %>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"><%= cuisine %></span>
+                  <% }); %>
+                <% } else { %>
+                  <span class="text-gray-400 text-sm italic">No preferences set</span>
+                <% } %>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Max Queue Time:</p>
+              <p class="text-gray-900 font-medium"><%= preferences.maxQueueTime %> minutes</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Max Walking Distance:</p>
+              <p class="text-gray-900 font-medium"><%= preferences.maxWalkingDistance %> meters</p>
+            </div>
+          <% } else { %>
+            <p class="text-gray-400 text-sm italic">No preferences configured</p>
+          <% } %>
+          <button 
+            data-testid="button-edit-preferences"
+            onclick="alert('Preferences editor coming soon!')" 
+            class="w-full mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+            Edit Preferences
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">🎯 Recommended for You</h2>
+        <button 
+          data-testid="button-refresh-recommendations"
+          onclick="loadRecommendations()" 
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+          Refresh
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="flex items-center justify-center py-12">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p class="text-gray-500">Loading recommendations...</p>
+        </div>
+      </div>
+
+      <!-- Recommendations List -->
+      <div id="recommendations-list" class="hidden space-y-4">
+        <!-- Will be populated by JavaScript -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="hidden text-center py-12">
+        <p class="text-gray-500 text-lg">No recommendations available. Try adjusting your preferences or location.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const userId = '<%= user.id %>';
+    
+    function toggleLocationSelector() {
+      const selector = document.getElementById('location-selector');
+      selector.classList.toggle('hidden');
+    }
+    
+    async function updateLocation() {
+      const blockId = document.getElementById('block-selector').value;
+      if (!blockId) {
+        alert('Please select a block');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/users/${userId}/location`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ blockId })
+        });
+        
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          alert('Failed to update location');
+        }
+      } catch (error) {
+        console.error('Error updating location:', error);
+        alert('Failed to update location');
+      }
+    }
+    
+    async function loadRecommendations() {
+      const loadingState = document.getElementById('loading-state');
+      const listContainer = document.getElementById('recommendations-list');
+      const emptyState = document.getElementById('empty-state');
+      
+      loadingState.classList.remove('hidden');
+      listContainer.classList.add('hidden');
+      emptyState.classList.add('hidden');
+      
+      try {
+        const response = await fetch(`/api/recommendations/${userId}`);
+        const recommendations = await response.json();
+        
+        loadingState.classList.add('hidden');
+        
+        if (recommendations.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+        
+        listContainer.innerHTML = recommendations.map((rec, index) => `
+          <div data-testid="card-recommendation-${index}" class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h3 class="text-xl font-semibold text-gray-900">#${index + 1} ${rec.stall.name}</h3>
+                <p class="text-gray-600">${rec.canteen.name} • ${rec.stall.cuisineType}</p>
+                ${rec.distance ? `<p class="text-sm text-gray-500 mt-1">📏 ${Math.round(rec.distance)}m away</p>` : ''}
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-bold text-blue-600">${(rec.score * 100).toFixed(0)}%</div>
+                <p class="text-xs text-gray-500 uppercase">Match Score</p>
+              </div>
+            </div>
+            
+            <!-- Stall Info -->
+            <div class="grid grid-cols-3 gap-4 mb-4 py-3 border-t border-b border-gray-100">
+              <div class="text-center">
+                <p class="text-sm text-gray-500">Queue</p>
+                <p class="text-lg font-semibold text-gray-900">${rec.stall.currentQueue} people</p>
+              </div>
+              <div class="text-center">
+                <p class="text-sm text-gray-500">Wait Time</p>
+                <p class="text-lg font-semibold text-gray-900">${rec.stall.estimatedWaitTime} min</p>
+              </div>
+              <div class="text-center">
+                <p class="text-sm text-gray-500">Rating</p>
+                <p class="text-lg font-semibold text-gray-900">⭐ ${rec.stall.rating}</p>
+              </div>
+            </div>
+            
+            <!-- Score Breakdown -->
+            <div class="space-y-2">
+              <p class="text-sm font-medium text-gray-700 mb-2">Score Breakdown:</p>
+              ${createScoreBar('Cuisine Match', rec.breakdown.preferenceScore, '#3B82F6')}
+              ${createScoreBar('Proximity', rec.breakdown.proximityScore, '#10B981')}
+              ${createScoreBar('Queue Time', rec.breakdown.queueScore, '#F59E0B')}
+              ${createScoreBar('Rating', rec.breakdown.ratingScore, '#EF4444')}
+            </div>
+            
+            ${rec.confidence !== 'high' ? `
+              <div class="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                ⚠️ Low confidence: ${rec.confidence === 'low' ? 'Set your location for better recommendations' : 'Add cuisine preferences for more accurate suggestions'}
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+        
+        listContainer.classList.remove('hidden');
+      } catch (error) {
+        console.error('Error loading recommendations:', error);
+        loadingState.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        emptyState.innerHTML = '<p class="text-red-500">Error loading recommendations. Please try again.</p>';
+      }
+    }
+    
+    function createScoreBar(label, score, color) {
+      const percentage = (score * 100).toFixed(0);
+      return `
+        <div>
+          <div class="flex justify-between text-xs text-gray-600 mb-1">
+            <span>${label}</span>
+            <span>${percentage}%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="score-bar h-2 rounded-full" style="width: ${percentage}%; background-color: ${color}"></div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Load recommendations on page load
+    window.addEventListener('DOMContentLoaded', loadRecommendations);
+  </script>
+</body>
+</html>

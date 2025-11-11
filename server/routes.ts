@@ -7,6 +7,8 @@ import {
   insertFoodListingSchema,
   insertVendorSchema,
   insertRatingSchema,
+  insertUserSchema,
+  insertUserPreferencesSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -109,6 +111,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart Recommendations
+  app.get("/recommendations", async (req, res) => {
+    try {
+      const blocks = await storage.getAllCampusBlocks();
+      
+      // For demo purposes, create or get a test user
+      let testUser = await storage.getUserByUsername("demo_user");
+      if (!testUser) {
+        testUser = await storage.createUser({
+          username: "demo_user",
+          email: "demo@foodrescue.sg",
+          passwordHash: "demo_hash",
+          fullName: "Demo User",
+          currentBlockId: blocks[0]?.id || null,
+          deliveryAvailable: false,
+        });
+        
+        // Create default preferences
+        await storage.createUserPreferences({
+          userId: testUser.id,
+          cuisineTypes: ["Chinese", "Western", "Japanese"],
+          dietaryRestrictions: [],
+          maxQueueTime: 30,
+          maxWalkingDistance: 500,
+          preferLowCost: true,
+          avoidPeakHours: true,
+        });
+      }
+      
+      const userPrefs = await storage.getUserPreferences(testUser.id);
+      const currentBlock = testUser.currentBlockId ? await storage.getCampusBlock(testUser.currentBlockId) : null;
+      
+      res.render("recommendations", {
+        title: "Smart Recommendations - Food Rescue SG",
+        user: testUser,
+        preferences: userPrefs,
+        currentBlock,
+        blocks,
+        activePage: "recommendations",
+      });
+    } catch (error) {
+      console.error("Error rendering recommendations:", error);
+      res.status(500).send("Error loading recommendations");
+    }
+  });
+
   // Admin Dashboard
   app.get("/admin", async (req, res) => {
     try {
@@ -140,6 +188,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== API ROUTES =====
+
+  // Get all campus blocks
+  app.get("/api/campus-blocks", async (req, res) => {
+    try {
+      const blocks = await storage.getAllCampusBlocks();
+      res.json(blocks);
+    } catch (error) {
+      console.error("Error fetching campus blocks:", error);
+      res.status(500).json({ error: "Failed to fetch campus blocks" });
+    }
+  });
+
+  // Get user by ID
+  app.get("/api/users/:userId", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  // Get smart recommendations for a user
+  app.get("/api/recommendations/:userId", async (req, res) => {
+    try {
+      const { calculateRecommendations } = await import("./services/recommendations");
+      
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const preferences = await storage.getUserPreferences(user.id);
+      const userBlock = user.currentBlockId 
+        ? await storage.getCampusBlock(user.currentBlockId)
+        : undefined;
+      
+      const stalls = await storage.getAllStalls();
+      const canteens = await storage.getAllCanteens();
+      const blocks = await storage.getAllCampusBlocks();
+
+      const recommendations = calculateRecommendations(
+        user,
+        preferences,
+        userBlock,
+        stalls,
+        canteens,
+        blocks
+      );
+
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error calculating recommendations:", error);
+      res.status(500).json({ error: "Failed to calculate recommendations" });
+    }
+  });
+
+  // Update user location
+  app.patch("/api/users/:userId/location", async (req, res) => {
+    try {
+      const { blockId } = req.body;
+      const user = await storage.updateUserLocation(req.params.userId, blockId);
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update location" });
+    }
+  });
+
+  // Update user preferences
+  app.patch("/api/users/:userId/preferences", async (req, res) => {
+    try {
+      const validatedData = insertUserPreferencesSchema.partial().parse(req.body);
+      const preferences = await storage.updateUserPreferences(
+        req.params.userId,
+        validatedData
+      );
+      res.json(preferences);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid preferences data" });
+    }
+  });
 
   // Get all stalls for a canteen
   app.get("/api/canteens/:id/stalls", async (req, res) => {

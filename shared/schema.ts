@@ -125,6 +125,10 @@ export const userPreferences = pgTable("user_preferences", {
   dietaryRestrictions: text("dietary_restrictions").array(), // ['vegetarian', 'halal', 'no-pork']
   spiceLevel: text("spice_level"), // 'none', 'mild', 'medium', 'hot'
   priceRange: text("price_range"), // 'budget', 'moderate', 'premium'
+  maxQueueTime: integer("max_queue_time").notNull().default(30), // Max acceptable wait in minutes
+  maxWalkingDistance: integer("max_walking_distance").notNull().default(500), // Max distance in meters
+  preferLowCost: boolean("prefer_low_cost").notNull().default(false),
+  avoidPeakHours: boolean("avoid_peak_hours").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

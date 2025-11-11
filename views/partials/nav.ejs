@@ -18,6 +18,11 @@
            data-testid="link-queue-monitor">
           Queue Monitor
         </a>
+        <a href="/recommendations" 
+           class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'recommendations' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
+           data-testid="link-recommendations">
+          Smart Recommendations
+        </a>
         <a href="/food-rescue" 
            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors <%= activePage === 'rescue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>"
            data-testid="link-food-rescue">
@@ -48,6 +53,10 @@
       <a href="/queue-monitor" 
          class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'queue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
         Queue Monitor
+      </a>
+      <a href="/recommendations" 
+         class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'recommendations' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
+        Smart Recommendations
       </a>
       <a href="/food-rescue" 
          class="block px-4 py-2 rounded-lg text-sm font-medium mb-1 <%= activePage === 'rescue' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100' %>">
