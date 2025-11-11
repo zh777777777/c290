@@ -9,6 +9,7 @@ import {
   insertRatingSchema,
   insertUserSchema,
   insertUserPreferencesSchema,
+  insertDeliveryRequestSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -157,6 +158,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Order Food with Delivery
+  app.get("/order-food", async (req, res) => {
+    try {
+      const stalls = await storage.getAllStalls();
+      const canteens = await storage.getAllCanteens();
+      const blocks = await storage.getAllCampusBlocks();
+      
+      // Get demo user
+      let testUser = await storage.getUserByUsername("demo_user");
+      if (!testUser) {
+        testUser = await storage.createUser({
+          username: "demo_user",
+          email: "demo@foodrescue.sg",
+          passwordHash: "demo_hash",
+          fullName: "Demo User",
+          currentBlockId: blocks[0]?.id || null,
+          deliveryAvailable: false,
+        });
+      }
+      
+      const currentBlock = testUser.currentBlockId ? await storage.getCampusBlock(testUser.currentBlockId) : null;
+      
+      // Check if it's peak hour (11:30-13:30 or 17:30-19:30 Singapore time)
+      const now = new Date();
+      const sgHour = (now.getUTCHours() + 8) % 24; // Singapore is UTC+8
+      const sgMinute = now.getUTCMinutes();
+      const isPeakHour = 
+        (sgHour === 11 && sgMinute >= 30) || 
+        (sgHour === 12) || 
+        (sgHour === 13 && sgMinute < 30) ||
+        (sgHour === 17 && sgMinute >= 30) || 
+        (sgHour === 18) || 
+        (sgHour === 19 && sgMinute < 30);
+      
+      res.render("order-food", {
+        title: "Order Food - Food Rescue SG",
+        stalls,
+        canteens,
+        campusBlocks: blocks,
+        user: testUser,
+        currentBlock,
+        isPeakHour,
+        activePage: "order",
+      });
+    } catch (error) {
+      console.error("Error rendering order food:", error);
+      res.status(500).send("Error loading order page");
+    }
+  });
+
   // Admin Dashboard
   app.get("/admin", async (req, res) => {
     try {
@@ -271,6 +322,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(preferences);
     } catch (error) {
       res.status(400).json({ error: "Invalid preferences data" });
+    }
+  });
+
+  // Create delivery request (order food with delivery)
+  app.post("/api/delivery-requests", async (req, res) => {
+    try {
+      // Get demo user for customer ID
+      const demoUser = await storage.getUserByUsername("demo_user");
+      if (!demoUser) {
+        return res.status(400).json({ error: "User not found" });
+      }
+
+      // SERVER-SIDE PRICING CALCULATION & VALIDATION (SECURITY)
+      // Parse and validate food total
+      const foodTotal = parseFloat(req.body.totalAmount || "0");
+      if (isNaN(foodTotal) || foodTotal <= 0 || foodTotal > 1000) {
+        return res.status(400).json({ error: "Invalid food total amount (must be between $0.01 and $1000)" });
+      }
+      
+      // Validate stall exists
+      const stall = await storage.getStall(req.body.stallId);
+      if (!stall) {
+        return res.status(400).json({ error: "Invalid stall ID" });
+      }
+      
+      // Sanitize text inputs (prevent XSS)
+      const sanitizeText = (text: string): string => {
+        return text
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#x27;')
+          .replace(/\//g, '&#x2F;')
+          .substring(0, 500); // Max length
+      };
+      
+      const foodItems = sanitizeText(req.body.foodItems || "");
+      if (foodItems.trim().length === 0) {
+        return res.status(400).json({ error: "Food items cannot be empty" });
+      }
+      
+      const pickupLocation = sanitizeText(req.body.pickupLocation || "");
+      const deliveryLocation = sanitizeText(req.body.deliveryLocation || "");
+      
+      // Validate delivery block exists
+      if (req.body.deliveryBlockId) {
+        const block = await storage.getCampusBlock(req.body.deliveryBlockId);
+        if (!block) {
+          return res.status(400).json({ error: "Invalid delivery location" });
+        }
+      }
+      
+      const requestData = req.body;
+      
+      // Calculate peak hour status (SERVER TIME - cannot be spoofed)
+      const now = new Date();
+      const sgHour = (now.getUTCHours() + 8) % 24; // Singapore is UTC+8
+      const sgMinute = now.getUTCMinutes();
+      const isPeakHour = 
+        (sgHour === 11 && sgMinute >= 30) || 
+        (sgHour === 12) || 
+        (sgHour === 13 && sgMinute < 30) ||
+        (sgHour === 17 && sgMinute >= 30) || 
+        (sgHour === 18) || 
+        (sgHour === 19 && sgMinute < 30);
+      
+      // Calculate delivery fee (SERVER-AUTHORITATIVE)
+      const baseDeliveryFee = 1.50;
+      const peakSurcharge = 0.50;
+      const deliveryFee = isPeakHour ? baseDeliveryFee + peakSurcharge : baseDeliveryFee;
+      
+      // Calculate correct total
+      const correctTotal = foodTotal + deliveryFee;
+      
+      // Note: Client also sends their calculated total, but we ignore it for security
+
+      const validatedData = insertDeliveryRequestSchema.parse({
+        customerId: demoUser.id,
+        stallId: requestData.stallId,
+        foodItems, // Sanitized
+        totalAmount: foodTotal.toFixed(2), // Food total only, validated
+        deliveryFee: deliveryFee.toFixed(2), // Server-calculated
+        isPeakHour, // Server-determined
+        pickupLocation, // Sanitized
+        deliveryLocation, // Sanitized
+        deliveryBlockId: requestData.deliveryBlockId, // Validated
+      });
+      
+      const deliveryRequest = await storage.createDeliveryRequest(validatedData);
+      res.json(deliveryRequest);
+    } catch (error) {
+      console.error("Error creating delivery request:", error);
+      res.status(400).json({ error: "Invalid delivery request data" });
+    }
+  });
+
+  // Get pending delivery requests (for delivery persons)
+  app.get("/api/delivery-requests/pending", async (req, res) => {
+    try {
+      const requests = await storage.getPendingDeliveryRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending requests" });
+    }
+  });
+
+  // Get customer's delivery requests
+  app.get("/api/delivery-requests/customer/:customerId", async (req, res) => {
+    try {
+      const requests = await storage.getDeliveryRequestsByCustomer(req.params.customerId);
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch customer requests" });
+    }
+  });
+
+  // Accept delivery request
+  app.patch("/api/delivery-requests/:id/accept", async (req, res) => {
+    try {
+      const { deliveryPersonId } = req.body;
+      const request = await storage.acceptDeliveryRequest(req.params.id, deliveryPersonId);
+      res.json(request);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to accept delivery request" });
+    }
+  });
+
+  // Update delivery status
+  app.patch("/api/delivery-requests/:id/status", async (req, res) => {
+    try {
+      const { status } = req.body;
+      const request = await storage.updateDeliveryStatus(req.params.id, status);
+      res.json(request);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update delivery status" });
     }
   });
 
