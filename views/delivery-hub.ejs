@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Hub - Food Rescue SG</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              600: '#0284c7',
+              700: '#0369a1',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50">
+  <%- include('partials/nav', { activePage: 'delivery' }) %>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Onboarding Section (shown if not a delivery person) -->
+    <div id="onboardingSection" class="<%= user.isDeliveryPerson ? 'hidden' : '' %>">
+      <div class="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">Become a Delivery Person</h1>
+          <p class="text-gray-600">Earn money by delivering food to your fellow students</p>
+        </div>
+
+        <!-- Benefits -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div class="text-center p-4 bg-blue-50 rounded-lg">
+            <div class="text-2xl font-bold text-primary-600 mb-1">$1.50+</div>
+            <div class="text-sm text-gray-600">Per Delivery</div>
+          </div>
+          <div class="text-center p-4 bg-green-50 rounded-lg">
+            <div class="text-2xl font-bold text-green-600 mb-1">Flexible</div>
+            <div class="text-sm text-gray-600">Work When You Want</div>
+          </div>
+          <div class="text-center p-4 bg-purple-50 rounded-lg">
+            <div class="text-2xl font-bold text-purple-600 mb-1">Rewards</div>
+            <div class="text-sm text-gray-600">Earn Vouchers</div>
+          </div>
+        </div>
+
+        <!-- Registration Form -->
+        <form id="onboardingForm" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number *
+            </label>
+            <input 
+              type="tel" 
+              id="phoneNumber" 
+              name="phoneNumber"
+              value="<%= user.phoneNumber || '' %>"
+              placeholder="+65 XXXX XXXX"
+              required
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              data-testid="input-phone-number"
+            />
+            <p class="text-xs text-gray-500 mt-1">We'll contact you about deliveries</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Your Current Location
+            </label>
+            <select 
+              id="currentLocation" 
+              name="currentLocation"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              data-testid="select-current-location"
+            >
+              <option value="">Select your location...</option>
+              <% campusBlocks.forEach(block => { %>
+                <option value="<%= block.id %>" <%= user.currentBlockId === block.id ? 'selected' : '' %>>
+                  <%= block.name %> (<%= block.shortName %>)
+                </option>
+              <% }); %>
+            </select>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-semibold text-gray-900 mb-2">Requirements</h3>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex items-start gap-2">
+                <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span>Must be a student on campus</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span>Valid phone number for customer contact</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span>Available to deliver within campus</span>
+              </li>
+            </ul>
+          </div>
+
+          <button 
+            type="submit" 
+            class="w-full bg-primary-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+            data-testid="button-register-delivery-person"
+          >
+            Start Delivering & Earning
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Dashboard Section (shown if already a delivery person) -->
+    <div id="dashboardSection" class="<%= !user.isDeliveryPerson ? 'hidden' : '' %>">
+      <!-- Header with Availability Toggle -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Delivery Hub</h1>
+            <p class="text-gray-600">Manage your deliveries and earnings</p>
+          </div>
+          
+          <!-- Availability Toggle -->
+          <div class="flex items-center gap-4">
+            <div class="text-right">
+              <div class="text-sm font-medium text-gray-700">Availability Status</div>
+              <div class="text-xs text-gray-500">Toggle to receive delivery requests</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                id="availabilityToggle"
+                <%= user.deliveryAvailable ? 'checked' : '' %>
+                class="sr-only peer"
+                data-testid="toggle-availability"
+              >
+              <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+              <span class="ml-3 text-sm font-medium" id="availabilityLabel">
+                <%= user.deliveryAvailable ? 'Online' : 'Offline' %>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div class="text-center p-4 bg-blue-50 rounded-lg">
+            <div class="text-2xl font-bold text-primary-600"><%= user.totalDeliveries || 0 %></div>
+            <div class="text-sm text-gray-600">Total Deliveries</div>
+          </div>
+          <div class="text-center p-4 bg-green-50 rounded-lg">
+            <div class="text-2xl font-bold text-green-600">$<%= totalEarnings || '0.00' %></div>
+            <div class="text-sm text-gray-600">Total Earnings</div>
+          </div>
+          <div class="text-center p-4 bg-purple-50 rounded-lg">
+            <div class="text-2xl font-bold text-purple-600">$<%= user.voucherBalance || '0.00' %></div>
+            <div class="text-sm text-gray-600">Voucher Balance</div>
+          </div>
+          <div class="text-center p-4 bg-yellow-50 rounded-lg">
+            <div class="text-2xl font-bold text-yellow-600"><%= pendingCount || 0 %></div>
+            <div class="text-sm text-gray-600">Available Jobs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="bg-white rounded-lg shadow-md">
+        <div class="border-b border-gray-200">
+          <nav class="flex -mb-px">
+            <button 
+              onclick="switchTab('available')" 
+              id="tabAvailable"
+              class="tab-button px-6 py-4 text-sm font-medium border-b-2 border-primary-600 text-primary-600"
+              data-testid="tab-available-jobs"
+            >
+              Available Jobs (<%= pendingCount || 0 %>)
+            </button>
+            <button 
+              onclick="switchTab('my-deliveries')" 
+              id="tabMyDeliveries"
+              class="tab-button px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              data-testid="tab-my-deliveries"
+            >
+              My Deliveries
+            </button>
+            <button 
+              onclick="switchTab('earnings')" 
+              id="tabEarnings"
+              class="tab-button px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              data-testid="tab-earnings"
+            >
+              Earnings & Rewards
+            </button>
+          </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+          <!-- Available Jobs Tab -->
+          <div id="contentAvailable" class="tab-content">
+            <% if (!user.deliveryAvailable) { %>
+              <div class="text-center py-12">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">You're Offline</h3>
+                <p class="text-gray-600">Toggle your availability to start seeing delivery requests</p>
+              </div>
+            <% } else if (pendingRequests && pendingRequests.length > 0) { %>
+              <div class="space-y-4">
+                <% pendingRequests.forEach(request => { %>
+                  <div class="border border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors" data-testid="card-delivery-request-<%= request.id %>">
+                    <div class="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 class="font-semibold text-gray-900"><%= request.stallName %></h3>
+                        <p class="text-sm text-gray-600"><%= request.canteenName %></p>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-lg font-bold text-green-600">+$<%= request.deliveryFee %></div>
+                        <% if (request.isPeakHour) { %>
+                          <span class="inline-block px-2 py-1 text-xs font-semibold text-orange-700 bg-orange-100 rounded-full">Peak Hour</span>
+                        <% } %>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+                      <div>
+                        <span class="text-gray-500">Pickup:</span>
+                        <span class="text-gray-900 ml-1"><%= request.pickupLocation %></span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">Deliver to:</span>
+                        <span class="text-gray-900 ml-1"><%= request.deliveryLocation %></span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">Order Total:</span>
+                        <span class="text-gray-900 ml-1">$<%= request.totalAmount %></span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">Order Time:</span>
+                        <span class="text-gray-900 ml-1"><%= new Date(request.createdAt).toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }) %></span>
+                      </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded p-3 mb-3">
+                      <div class="text-xs font-medium text-gray-500 mb-1">Items:</div>
+                      <div class="text-sm text-gray-900"><%= request.foodItems %></div>
+                    </div>
+
+                    <button 
+                      onclick="acceptDelivery('<%= request.id %>')" 
+                      class="w-full bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700 transition-colors"
+                      data-testid="button-accept-<%= request.id %>"
+                    >
+                      Accept Delivery (+$<%= request.deliveryFee %>)
+                    </button>
+                  </div>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="text-center py-12">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Available Jobs</h3>
+                <p class="text-gray-600">Check back soon for new delivery requests</p>
+              </div>
+            <% } %>
+          </div>
+
+          <!-- My Deliveries Tab -->
+          <div id="contentMyDeliveries" class="tab-content hidden">
+            <% if (myDeliveries && myDeliveries.length > 0) { %>
+              <div class="space-y-4">
+                <% myDeliveries.forEach(delivery => { %>
+                  <div class="border border-gray-200 rounded-lg p-4" data-testid="card-my-delivery-<%= delivery.id %>">
+                    <div class="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 class="font-semibold text-gray-900"><%= delivery.stallName %></h3>
+                        <p class="text-sm text-gray-600"><%= delivery.canteenName %></p>
+                      </div>
+                      <div class="text-right">
+                        <% 
+                        const statusColors = {
+                          accepted: 'bg-blue-100 text-blue-700',
+                          picked_up: 'bg-purple-100 text-purple-700',
+                          delivering: 'bg-yellow-100 text-yellow-700',
+                          delivered: 'bg-green-100 text-green-700'
+                        };
+                        const statusLabels = {
+                          accepted: 'Accepted',
+                          picked_up: 'Picked Up',
+                          delivering: 'Delivering',
+                          delivered: 'Delivered'
+                        };
+                        %>
+                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <%= statusColors[delivery.status] || 'bg-gray-100 text-gray-700' %>">
+                          <%= statusLabels[delivery.status] || delivery.status %>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+                      <div>
+                        <span class="text-gray-500">Pickup:</span>
+                        <span class="text-gray-900 ml-1"><%= delivery.pickupLocation %></span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">Deliver to:</span>
+                        <span class="text-gray-900 ml-1"><%= delivery.deliveryLocation %></span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">Your Earning:</span>
+                        <span class="text-green-600 ml-1 font-semibold">+$<%= delivery.deliveryFee %></span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">Order Total:</span>
+                        <span class="text-gray-900 ml-1">$<%= delivery.totalAmount %></span>
+                      </div>
+                    </div>
+
+                    <!-- Status Update Buttons -->
+                    <% if (delivery.status === 'accepted') { %>
+                      <button 
+                        onclick="updateStatus('<%= delivery.id %>', 'picked_up')" 
+                        class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                        data-testid="button-mark-picked-up-<%= delivery.id %>"
+                      >
+                        Mark as Picked Up
+                      </button>
+                    <% } else if (delivery.status === 'picked_up') { %>
+                      <button 
+                        onclick="updateStatus('<%= delivery.id %>', 'delivering')" 
+                        class="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-yellow-700 transition-colors"
+                        data-testid="button-mark-delivering-<%= delivery.id %>"
+                      >
+                        Start Delivering
+                      </button>
+                    <% } else if (delivery.status === 'delivering') { %>
+                      <button 
+                        onclick="updateStatus('<%= delivery.id %>', 'delivered')" 
+                        class="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                        data-testid="button-mark-delivered-<%= delivery.id %>"
+                      >
+                        Mark as Delivered
+                      </button>
+                    <% } else if (delivery.status === 'delivered') { %>
+                      <div class="text-center text-green-600 font-medium">
+                        ✓ Delivery Completed
+                      </div>
+                    <% } %>
+                  </div>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="text-center py-12">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Active Deliveries</h3>
+                <p class="text-gray-600">Accept a delivery request to get started</p>
+              </div>
+            <% } %>
+          </div>
+
+          <!-- Earnings Tab -->
+          <div id="contentEarnings" class="tab-content hidden">
+            <!-- Earnings Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="bg-green-50 rounded-lg p-6 text-center">
+                <div class="text-3xl font-bold text-green-600 mb-1">$<%= totalEarnings || '0.00' %></div>
+                <div class="text-sm text-gray-600">Total Earnings</div>
+              </div>
+              <div class="bg-purple-50 rounded-lg p-6 text-center">
+                <div class="text-3xl font-bold text-purple-600 mb-1">$<%= user.voucherBalance || '0.00' %></div>
+                <div class="text-sm text-gray-600">Voucher Balance</div>
+              </div>
+              <div class="bg-blue-50 rounded-lg p-6 text-center">
+                <div class="text-3xl font-bold text-primary-600 mb-1"><%= earningsHistory?.length || 0 %></div>
+                <div class="text-sm text-gray-600">Completed Deliveries</div>
+              </div>
+            </div>
+
+            <!-- Earnings History -->
+            <% if (earningsHistory && earningsHistory.length > 0) { %>
+              <h3 class="font-semibold text-gray-900 mb-4">Earnings History</h3>
+              <div class="space-y-3">
+                <% earningsHistory.forEach(earning => { %>
+                  <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div class="font-medium text-gray-900">Delivery Completed</div>
+                      <div class="text-sm text-gray-500">
+                        <%= new Date(earning.createdAt).toLocaleDateString('en-SG', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-lg font-bold text-green-600">+$<%= earning.totalEarning %></div>
+                      <% if (Number(earning.peakBonus) > 0) { %>
+                        <div class="text-xs text-orange-600">+$<%= earning.peakBonus %> peak bonus</div>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="text-center py-12">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Earnings Yet</h3>
+                <p class="text-gray-600">Complete deliveries to start earning</p>
+              </div>
+            <% } %>
+
+            <!-- Vouchers Section -->
+            <% if (vouchers && vouchers.length > 0) { %>
+              <h3 class="font-semibold text-gray-900 mt-8 mb-4">Your Vouchers</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <% vouchers.forEach(voucher => { %>
+                  <div class="border-2 border-dashed border-purple-300 rounded-lg p-4 bg-purple-50">
+                    <div class="flex justify-between items-start mb-2">
+                      <div class="text-2xl font-bold text-purple-600">$<%= voucher.amount %></div>
+                      <% if (!voucher.used) { %>
+                        <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Active</span>
+                      <% } else { %>
+                        <span class="px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded-full">Used</span>
+                      <% } %>
+                    </div>
+                    <div class="text-sm text-gray-700 mb-2"><%= voucher.reason %></div>
+                    <% if (voucher.expiresAt) { %>
+                      <div class="text-xs text-gray-500">
+                        Expires: <%= new Date(voucher.expiresAt).toLocaleDateString('en-SG') %>
+                      </div>
+                    <% } %>
+                  </div>
+                <% }); %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    function switchTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('border-primary-600', 'text-primary-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+      });
+
+      // Show selected tab
+      document.getElementById('content' + tabName.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('')).classList.remove('hidden');
+      document.getElementById('tab' + tabName.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('')).classList.remove('border-transparent', 'text-gray-500');
+      document.getElementById('tab' + tabName.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('')).classList.add('border-primary-600', 'text-primary-600');
+    }
+
+    // Onboarding form submission
+    document.getElementById('onboardingForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const phoneNumber = document.getElementById('phoneNumber').value;
+      const currentLocation = document.getElementById('currentLocation').value;
+
+      if (!phoneNumber) {
+        alert('Please enter your phone number');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/users/register-delivery-person', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, currentBlockId: currentLocation })
+        });
+
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          const error = await response.json();
+          alert('Registration failed: ' + error.error);
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        alert('Failed to register as delivery person');
+      }
+    });
+
+    // Availability toggle
+    document.getElementById('availabilityToggle')?.addEventListener('change', async (e) => {
+      const available = e.target.checked;
+      
+      try {
+        const response = await fetch('/api/users/toggle-availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ available })
+        });
+
+        if (response.ok) {
+          document.getElementById('availabilityLabel').textContent = available ? 'Online' : 'Offline';
+          
+          // Reload to update available jobs if going online
+          if (available) {
+            setTimeout(() => window.location.reload(), 500);
+          }
+        } else {
+          e.target.checked = !available; // Revert toggle
+          alert('Failed to update availability');
+        }
+      } catch (error) {
+        console.error('Availability toggle error:', error);
+        e.target.checked = !available; // Revert toggle
+      }
+    });
+
+    // Accept delivery
+    async function acceptDelivery(requestId) {
+      if (!confirm('Accept this delivery request?')) return;
+
+      try {
+        const response = await fetch(`/api/delivery-requests/${requestId}/accept`, {
+          method: 'PATCH'
+        });
+
+        if (response.ok) {
+          alert('Delivery accepted! Check "My Deliveries" tab.');
+          window.location.reload();
+        } else {
+          const error = await response.json();
+          alert('Failed to accept delivery: ' + error.error);
+        }
+      } catch (error) {
+        console.error('Accept delivery error:', error);
+        alert('Failed to accept delivery');
+      }
+    }
+
+    // Update delivery status
+    async function updateStatus(requestId, newStatus) {
+      const statusLabels = {
+        picked_up: 'Picked Up',
+        delivering: 'Delivering',
+        delivered: 'Delivered'
+      };
+
+      if (!confirm(`Mark as ${statusLabels[newStatus]}?`)) return;
+
+      try {
+        const response = await fetch(`/api/delivery-requests/${requestId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+
+        if (response.ok) {
+          alert(`Status updated to ${statusLabels[newStatus]}`);
+          window.location.reload();
+        } else {
+          const error = await response.json();
+          alert('Failed to update status: ' + error.error);
+        }
+      } catch (error) {
+        console.error('Status update error:', error);
+        alert('Failed to update status');
+      }
+    }
+  </script>
+</body>
+</html>

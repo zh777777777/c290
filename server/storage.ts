@@ -64,6 +64,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   updateUserLocation(userId: string, blockId: string): Promise<User | undefined>;
   toggleDeliveryAvailability(userId: string, available: boolean): Promise<User | undefined>;
+  registerAsDeliveryPerson(userId: string, phoneNumber?: string, blockId?: string): Promise<User | undefined>;
   updateUserVoucherBalance(userId: string, amount: string): Promise<User | undefined>;
   incrementUserDeliveries(userId: string): Promise<User | undefined>;
   
@@ -792,6 +793,28 @@ export class DbStorage implements IStorage {
     const results = await this.db
       .update(users)
       .set({ deliveryAvailable: available })
+      .where(eq(users.id, userId))
+      .returning();
+    return results[0];
+  }
+
+  async registerAsDeliveryPerson(userId: string, phoneNumber?: string, blockId?: string): Promise<User | undefined> {
+    const updateData: any = {
+      isDeliveryPerson: true,
+      deliveryAvailable: false, // Start as offline
+    };
+    
+    if (phoneNumber) {
+      updateData.phoneNumber = phoneNumber;
+    }
+    
+    if (blockId) {
+      updateData.currentBlockId = blockId;
+    }
+    
+    const results = await this.db
+      .update(users)
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     return results[0];

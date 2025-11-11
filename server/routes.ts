@@ -208,6 +208,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delivery Hub
+  app.get("/delivery-hub", async (req, res) => {
+    try {
+      const blocks = await storage.getAllCampusBlocks();
+      
+      // Get demo user
+      let testUser = await storage.getUserByUsername("demo_user");
+      if (!testUser) {
+        testUser = await storage.createUser({
+          username: "demo_user",
+          email: "demo@foodrescue.sg",
+          passwordHash: "demo_hash",
+          fullName: "Demo User",
+          currentBlockId: blocks[0]?.id || null,
+          deliveryAvailable: false,
+          isDeliveryPerson: false,
+        });
+      }
+      
+      // Get pending delivery requests (only if user is online)
+      let pendingRequests: any[] = [];
+      if (testUser.isDeliveryPerson && testUser.deliveryAvailable) {
+        const rawRequests = await storage.getPendingDeliveryRequests();
+        const stalls = await storage.getAllStalls();
+        const canteens = await storage.getAllCanteens();
+        
+        // Enrich with stall and canteen names
+        pendingRequests = rawRequests.map(req => {
+          const stall = stalls.find(s => s.id === req.stallId);
+          const canteen = canteens.find(c => c.id === stall?.canteenId);
+          return {
+            ...req,
+            stallName: stall?.name || 'Unknown Stall',
+            canteenName: canteen?.name || 'Unknown Canteen',
+          };
+        });
+      }
+      
+      // Get user's active deliveries
+      let myDeliveries: any[] = [];
+      if (testUser.isDeliveryPerson) {
+        const rawDeliveries = await storage.getDeliveryRequestsByDeliveryPerson(testUser.id);
+        const stalls = await storage.getAllStalls();
+        const canteens = await storage.getAllCanteens();
+        
+        // Filter out cancelled/pending, enrich with names
+        myDeliveries = rawDeliveries
+          .filter(d => d.status !== 'cancelled' && d.status !== 'pending')
+          .map(req => {
+            const stall = stalls.find(s => s.id === req.stallId);
+            const canteen = canteens.find(c => c.id === stall?.canteenId);
+            return {
+              ...req,
+              stallName: stall?.name || 'Unknown Stall',
+              canteenName: canteen?.name || 'Unknown Canteen',
+            };
+          });
+      }
+      
+      // Get earnings data
+      let earningsHistory: any[] = [];
+      let totalEarnings = 0;
+      if (testUser.isDeliveryPerson) {
+        earningsHistory = await storage.getDeliveryPersonEarnings(testUser.id);
+        totalEarnings = await storage.getTotalEarnings(testUser.id);
+      }
+      
+      // Get vouchers
+      const vouchers = await storage.getUserVouchers(testUser.id, false);
+      
+      res.render("delivery-hub", {
+        title: "Delivery Hub - Food Rescue SG",
+        user: testUser,
+        campusBlocks: blocks,
+        pendingRequests,
+        pendingCount: pendingRequests.length,
+        myDeliveries,
+        earningsHistory,
+        totalEarnings: totalEarnings.toFixed(2),
+        vouchers,
+        activePage: "delivery",
+      });
+    } catch (error) {
+      console.error("Error rendering delivery hub:", error);
+      res.status(500).send("Error loading delivery hub");
+    }
+  });
+
   // Admin Dashboard
   app.get("/admin", async (req, res) => {
     try {
@@ -438,13 +526,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Register as delivery person
+  app.post("/api/users/register-delivery-person", async (req, res) => {
+    try {
+      const { phoneNumber, currentBlockId } = req.body;
+      
+      // Get demo user
+      const user = await storage.getUserByUsername("demo_user");
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Register user as delivery person
+      const updatedUser = await storage.registerAsDeliveryPerson(user.id, phoneNumber, currentBlockId);
+      
+      if (!updatedUser) {
+        return res.status(500).json({ error: "Failed to update user" });
+      }
+      
+      res.json({ success: true, message: "Registered as delivery person", user: updatedUser });
+    } catch (error) {
+      console.error("Error registering delivery person:", error);
+      res.status(500).json({ error: "Failed to register as delivery person" });
+    }
+  });
+
+  // Toggle delivery availability
+  app.post("/api/users/toggle-availability", async (req, res) => {
+    try {
+      const { available } = req.body;
+      
+      // Get demo user
+      const user = await storage.getUserByUsername("demo_user");
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const updatedUser = await storage.toggleDeliveryAvailability(user.id, available);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error toggling availability:", error);
+      res.status(500).json({ error: "Failed to toggle availability" });
+    }
+  });
+
   // Accept delivery request
   app.patch("/api/delivery-requests/:id/accept", async (req, res) => {
     try {
-      const { deliveryPersonId } = req.body;
-      const request = await storage.acceptDeliveryRequest(req.params.id, deliveryPersonId);
+      // Get demo user as delivery person
+      const user = await storage.getUserByUsername("demo_user");
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (!user.isDeliveryPerson) {
+        return res.status(403).json({ error: "User is not a delivery person" });
+      }
+      
+      const request = await storage.acceptDeliveryRequest(req.params.id, user.id);
+      
+      if (!request) {
+        return res.status(404).json({ error: "Delivery request not found" });
+      }
+      
       res.json(request);
     } catch (error) {
+      console.error("Error accepting delivery request:", error);
       res.status(500).json({ error: "Failed to accept delivery request" });
     }
   });
