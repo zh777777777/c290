@@ -579,6 +579,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`[Status Update] SUCCESS! Request ${id} updated to ${updatedRequest.status}`);
+      
+      // If status is now 'delivered', create earnings record
+      if (status === 'delivered' && updatedRequest.deliveryPersonId) {
+        try {
+          const deliveryFee = Number(updatedRequest.deliveryFee);
+          const isPeakHour = updatedRequest.isPeakHour || false;
+          const peakBonus = isPeakHour ? 0.50 : 0; // $0.50 bonus for peak hours
+          const totalEarning = deliveryFee + peakBonus;
+          
+          console.log(`[Earnings] Creating earnings record for delivery ${id}: $${totalEarning.toFixed(2)} (base: $${deliveryFee.toFixed(2)}, bonus: $${peakBonus.toFixed(2)})`);
+          
+          // Create earnings record
+          await storage.createDeliveryEarnings({
+            deliveryRequestId: id,
+            deliveryPersonId: updatedRequest.deliveryPersonId,
+            baseEarning: deliveryFee.toString(),
+            peakBonus: peakBonus.toString(),
+            totalEarning: totalEarning.toString(),
+          });
+          
+          // Increment total deliveries count
+          const updatedUser = await storage.incrementUserDeliveries(updatedRequest.deliveryPersonId);
+          console.log(`[Earnings] Incremented delivery count for user ${updatedRequest.deliveryPersonId}`);
+        } catch (earningsError) {
+          console.error(`[Earnings] Failed to create earnings record:`, earningsError);
+          // Don't fail the status update if earnings creation fails
+        }
+      }
+      
       res.json({ success: true, request: updatedRequest });
     } catch (error) {
       console.error("Error updating delivery status:", error);
