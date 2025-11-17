@@ -1,7 +1,9 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+
 
 const app = express();
 
@@ -50,9 +52,9 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // Seed database with initial data
-  if (storage.seedDatabase) {
-    await storage.seedDatabase();
+  // Seed database with initial data if the storage implementation provides it.
+  if ((storage as any).seedDatabase) {
+    await (storage as any).seedDatabase();
   }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -77,11 +79,19 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  // On Windows some listen options (like reusePort with a host) can
+  // result in ENOTSUP. Use a simpler listen signature on win32.
+  if (process.platform === 'win32') {
+    server.listen(port, () => {
+      log(`serving on port ${port}`);
+    });
+  } else {
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`serving on port ${port}`);
+    });
+  }
 })();

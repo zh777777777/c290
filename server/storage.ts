@@ -99,12 +99,16 @@ export interface IStorage {
   useVoucher(voucherId: string): Promise<Voucher | undefined>;
 }
 
-export class MemStorage implements IStorage {
+export class MemStorage {
   private canteens: Map<string, Canteen>;
   private stalls: Map<string, Stall>;
   private foodListings: Map<string, FoodListing>;
   private vendors: Map<string, Vendor>;
   private ratings: Map<string, Rating>;
+  // Added maps for user-related data and campus blocks to support routes in development
+  private users: Map<string, User>;
+  private userPreferences: Map<string, UserPreferences>;
+  private campusBlocks: Map<string, CampusBlock>;
 
   constructor() {
     this.canteens = new Map();
@@ -112,6 +116,9 @@ export class MemStorage implements IStorage {
     this.foodListings = new Map();
     this.vendors = new Map();
     this.ratings = new Map();
+    this.users = new Map();
+    this.userPreferences = new Map();
+    this.campusBlocks = new Map();
     this.seedInitialData();
   }
 
@@ -212,6 +219,50 @@ export class MemStorage implements IStorage {
         available: true,
         createdAt: new Date(),
       });
+    });
+
+    // Seed simple campus blocks so recommendation engine has location data in MemStorage
+    const blockData = [
+      { id: 'block-1', name: 'Block A (North Wing)', shortName: 'BLK-A', nearestCanteenId: 'canteen-1', latitude: '1.2966000', longitude: '103.7764000' },
+      { id: 'block-2', name: 'Block B (South Wing)', shortName: 'BLK-B', nearestCanteenId: 'canteen-2', latitude: '1.2956000', longitude: '103.7774000' },
+      { id: 'block-3', name: 'Block C (East Wing)', shortName: 'BLK-C', nearestCanteenId: 'canteen-3', latitude: '1.2976000', longitude: '103.7784000' },
+    ];
+
+    blockData.forEach(b => this.campusBlocks.set(b.id, {
+      id: b.id,
+      name: b.name,
+      shortName: b.shortName,
+      nearestCanteenId: b.nearestCanteenId,
+      latitude: b.latitude,
+      longitude: b.longitude,
+    }));
+
+    // Create a demo user and default preferences for development
+    const demoUserId = 'user-demo-1';
+    this.users.set(demoUserId, {
+      id: demoUserId,
+      username: 'demo_user',
+      email: 'demo@foodrescue.sg',
+      passwordHash: 'de   mo_hash',
+      fullName: 'Demo User',
+      currentBlockId: 'block-1',
+      deliveryAvailable: false,
+      isDeliveryPerson: false,
+      voucherBalance: '0',
+      totalDeliveries: 0,
+    });
+
+    this.userPreferences.set(demoUserId, {
+      id: `prefs-${demoUserId}`,
+      userId: demoUserId,
+      cuisineTypes: ['Chinese', 'Western', 'Japanese'],
+      dietaryRestrictions: [],
+      maxQueueTime: 30,
+      maxWalkingDistance: 500,
+      preferLowCost: true,
+      avoidPeakHours: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
   }
 
@@ -412,6 +463,133 @@ export class MemStorage implements IStorage {
 
   async deleteFoodListing(id: string): Promise<void> {
     this.foodListings.delete(id);
+  }
+
+  // --- Campus Blocks (MemStorage) ---
+  async getAllCampusBlocks(): Promise<CampusBlock[]> {
+    return Array.from(this.campusBlocks.values());
+  }
+
+  async getCampusBlock(id: string): Promise<CampusBlock | undefined> {
+    return this.campusBlocks.get(id);
+  }
+
+  async createCampusBlock(insertBlock: InsertCampusBlock): Promise<CampusBlock> {
+    const id = randomUUID();
+    const block: CampusBlock = {
+      id,
+      name: (insertBlock as any).name,
+      shortName: (insertBlock as any).shortName || (insertBlock as any).name,
+      nearestCanteenId: (insertBlock as any).nearestCanteenId || '',
+      latitude: (insertBlock as any).latitude || '0',
+      longitude: (insertBlock as any).longitude || '0',
+    };
+    this.campusBlocks.set(id, block);
+    return block;
+  }
+
+  // --- Users & Preferences (MemStorage) ---
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = {
+      id,
+      username: insertUser.username,
+      email: insertUser.email,
+      passwordHash: insertUser.passwordHash || '',
+      fullName: insertUser.fullName || '',
+      currentBlockId: (insertUser as any).currentBlockId || null,
+      deliveryAvailable: (insertUser as any).deliveryAvailable || false,
+      isDeliveryPerson: (insertUser as any).isDeliveryPerson || false,
+      voucherBalance: (insertUser as any).voucherBalance || '0',
+      totalDeliveries: (insertUser as any).totalDeliveries || 0,
+    };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.username === username);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.email === email);
+  }
+
+  async updateUserLocation(userId: string, blockId: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      user.currentBlockId = blockId;
+    }
+    return user;
+  }
+
+  async toggleDeliveryAvailability(userId: string, available: boolean): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      user.deliveryAvailable = available;
+    }
+    return user;
+  }
+
+  async registerAsDeliveryPerson(userId: string, phoneNumber?: string, blockId?: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      user.isDeliveryPerson = true;
+      user.deliveryAvailable = false;
+      if (blockId) user.currentBlockId = blockId;
+    }
+    return user;
+  }
+
+  async updateUserVoucherBalance(userId: string, amount: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      user.voucherBalance = amount;
+    }
+    return user;
+  }
+
+  async incrementUserDeliveries(userId: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (user) {
+      user.totalDeliveries = (user.totalDeliveries || 0) + 1;
+    }
+    return user;
+  }
+
+  // Preferences
+  async createUserPreferences(insertPrefs: InsertUserPreferences): Promise<UserPreferences> {
+    const id = randomUUID();
+    const prefs: UserPreferences = {
+      id,
+      userId: insertPrefs.userId,
+      cuisineTypes: insertPrefs.cuisineTypes || [],
+      dietaryRestrictions: insertPrefs.dietaryRestrictions || [],
+      maxQueueTime: insertPrefs.maxQueueTime || 30,
+      maxWalkingDistance: insertPrefs.maxWalkingDistance || 1000,
+      preferLowCost: insertPrefs.preferLowCost || false,
+      avoidPeakHours: insertPrefs.avoidPeakHours || false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.userPreferences.set(id, prefs);
+    return prefs;
+  }
+
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    return Array.from(this.userPreferences.values()).find(p => p.userId === userId);
+  }
+
+  async updateUserPreferences(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences | undefined> {
+    const existing = await this.getUserPreferences(userId);
+    if (!existing) return undefined;
+    const updated: any = { ...existing, ...prefs, updatedAt: new Date() };
+    this.userPreferences.set(existing.id, updated);
+    return updated as UserPreferences;
   }
 }
 
@@ -977,4 +1155,8 @@ export class DbStorage implements IStorage {
   }
 }
 
-export const storage = new DbStorage();
+// Use in-memory storage in development so the app can run without a live DB.
+// Production (or any non-development env) will use the real DbStorage.
+export const storage: IStorage = (process.env.NODE_ENV === "development")
+  ? (new MemStorage() as unknown as IStorage)
+  : new DbStorage();
