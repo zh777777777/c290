@@ -109,6 +109,7 @@ export class MemStorage {
   private users: Map<string, User>;
   private userPreferences: Map<string, UserPreferences>;
   private campusBlocks: Map<string, CampusBlock>;
+  private vouchers: Map<string, Voucher>;   // <<< NEW
 
   constructor() {
     this.canteens = new Map();
@@ -119,8 +120,10 @@ export class MemStorage {
     this.users = new Map();
     this.userPreferences = new Map();
     this.campusBlocks = new Map();
+    this.vouchers = new Map();              // <<< NEW
     this.seedInitialData();
   }
+
 
   private seedInitialData() {
     // Seed 5 canteens
@@ -591,6 +594,39 @@ export class MemStorage {
     this.userPreferences.set(existing.id, updated);
     return updated as UserPreferences;
   }
+
+    // ---------- VOUCHERS (IN-MEMORY) ----------
+  async createVoucher(insertVoucher: InsertVoucher): Promise<Voucher> {
+    const id = randomUUID();
+    const voucher: Voucher = {
+      id,
+      userId: insertVoucher.userId,
+      amount: insertVoucher.amount,
+      reason: insertVoucher.reason,
+      used: false,
+      createdAt: new Date(),
+      expiresAt: insertVoucher.expiresAt ?? null,
+    };
+    this.vouchers.set(id, voucher);
+    return voucher;
+  }
+
+  async getUserVouchers(userId: string, unusedOnly?: boolean): Promise<Voucher[]> {
+    const all = Array.from(this.vouchers.values()).filter(v => v.userId === userId);
+    if (unusedOnly) {
+      return all.filter(v => !v.used);
+    }
+    return all;
+  }
+
+  async useVoucher(voucherId: string): Promise<Voucher | undefined> {
+    const v = this.vouchers.get(voucherId);
+    if (!v) return undefined;
+    v.used = true;
+    this.vouchers.set(voucherId, v);
+    return v;
+  }
+}
 }
 
 // Database Storage using PostgreSQL + Drizzle ORM
@@ -1153,6 +1189,38 @@ export class DbStorage implements IStorage {
       .returning();
     return results[0];
   }
+    // ---------- VOUCHERS (DATABASE) ----------
+  async createVoucher(insertVoucher: InsertVoucher): Promise<Voucher> {
+    const id = randomUUID();
+    const [row] = await this.db
+      .insert(vouchers)
+      .values({ ...insertVoucher, id })
+      .returning();
+    return row;
+  }
+
+  async getUserVouchers(userId: string, unusedOnly?: boolean): Promise<Voucher[]> {
+    if (unusedOnly) {
+      return await this.db
+        .select()
+        .from(vouchers)
+        .where(and(eq(vouchers.userId, userId), eq(vouchers.used, false)));
+    }
+    return await this.db
+      .select()
+      .from(vouchers)
+      .where(eq(vouchers.userId, userId));
+  }
+
+  async useVoucher(voucherId: string): Promise<Voucher | undefined> {
+    const [row] = await this.db
+      .update(vouchers)
+      .set({ used: true })
+      .where(eq(vouchers.id, voucherId))
+      .returning();
+    return row;
+  }
+
 }
 
 // Use in-memory storage in development so the app can run without a live DB.
