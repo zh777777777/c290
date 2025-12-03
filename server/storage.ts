@@ -1264,31 +1264,6 @@ export class DbStorage implements IStorage {
   // Vouchers
   async createVoucher(insertVoucher: InsertVoucher): Promise<Voucher> {
     const id = randomUUID();
-    const results = await this.db.insert(vouchers).values({ ...insertVoucher, id }).returning();
-    return results[0];
-  }
-
-  async getUserVouchers(userId: string, unusedOnly: boolean = false): Promise<Voucher[]> {
-    if (unusedOnly) {
-      return await this.db
-        .select()
-        .from(vouchers)
-        .where(and(eq(vouchers.userId, userId), eq(vouchers.used, false)));
-    }
-    return await this.db.select().from(vouchers).where(eq(vouchers.userId, userId));
-  }
-
-  async useVoucher(voucherId: string): Promise<Voucher | undefined> {
-    const results = await this.db
-      .update(vouchers)
-      .set({ used: true, usedAt: new Date() })
-      .where(eq(vouchers.id, voucherId))
-      .returning();
-    return results[0];
-  }
-    // ---------- VOUCHERS (DATABASE) ----------
-  async createVoucher(insertVoucher: InsertVoucher): Promise<Voucher> {
-    const id = randomUUID();
     const [row] = await this.db
       .insert(vouchers)
       .values({ ...insertVoucher, id })

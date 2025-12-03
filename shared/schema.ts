@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 export const canteens = pgTable("canteens", {
   id: varchar("id", { length: 255 }).primaryKey(),
   name: text("name").notNull(),
-  location: text("location").notNull(),
+  location: text("location"),
   totalStalls: integer("total_stalls").notNull().default(0),
 });
 
