@@ -99,7 +99,7 @@ export interface IStorage {
   useVoucher(voucherId: string): Promise<Voucher | undefined>;
 }
 
-export class MemStorage {
+export class MemStorage implements IStorage {
   private canteens: Map<string, Canteen>;
   private stalls: Map<string, Stall>;
   private foodListings: Map<string, FoodListing>;
@@ -109,7 +109,9 @@ export class MemStorage {
   private users: Map<string, User>;
   private userPreferences: Map<string, UserPreferences>;
   private campusBlocks: Map<string, CampusBlock>;
-  private vouchers: Map<string, Voucher>;   // <<< NEW
+  private vouchers: Map<string, Voucher>;
+  private deliveryRequests: Map<string, DeliveryRequest>;
+  private deliveryEarnings: Map<string, DeliveryEarnings>;
 
   constructor() {
     this.canteens = new Map();
@@ -120,7 +122,9 @@ export class MemStorage {
     this.users = new Map();
     this.userPreferences = new Map();
     this.campusBlocks = new Map();
-    this.vouchers = new Map();              // <<< NEW
+    this.vouchers = new Map();
+    this.deliveryRequests = new Map();
+    this.deliveryEarnings = new Map();
     this.seedInitialData();
   }
 
@@ -625,6 +629,99 @@ export class MemStorage {
     v.used = true;
     this.vouchers.set(voucherId, v);
     return v;
+  }
+
+  // --- Delivery Requests (MemStorage) ---
+  async createDeliveryRequest(insertRequest: InsertDeliveryRequest): Promise<DeliveryRequest> {
+    const id = randomUUID();
+    const request: DeliveryRequest = {
+      id,
+      customerId: insertRequest.customerId,
+      stallId: insertRequest.stallId,
+      deliveryPersonId: insertRequest.deliveryPersonId || null,
+      status: insertRequest.status || 'pending',
+      createdAt: new Date(),
+      acceptedAt: null,
+      deliveredAt: null,
+      customerRating: null,
+      customerReview: null,
+    };
+    this.deliveryRequests.set(id, request);
+    return request;
+  }
+
+  async getDeliveryRequest(id: string): Promise<DeliveryRequest | undefined> {
+    return this.deliveryRequests.get(id);
+  }
+
+  async getPendingDeliveryRequests(): Promise<DeliveryRequest[]> {
+    return Array.from(this.deliveryRequests.values()).filter(r => r.status === 'pending');
+  }
+
+  async getDeliveryRequestsByCustomer(customerId: string): Promise<DeliveryRequest[]> {
+    return Array.from(this.deliveryRequests.values()).filter(r => r.customerId === customerId);
+  }
+
+  async getDeliveryRequestsByDeliveryPerson(deliveryPersonId: string): Promise<DeliveryRequest[]> {
+    return Array.from(this.deliveryRequests.values()).filter(r => r.deliveryPersonId === deliveryPersonId);
+  }
+
+  async acceptDeliveryRequest(requestId: string, deliveryPersonId: string): Promise<DeliveryRequest | undefined> {
+    const request = this.deliveryRequests.get(requestId);
+    if (request) {
+      request.deliveryPersonId = deliveryPersonId;
+      request.status = 'accepted';
+      request.acceptedAt = new Date();
+      this.deliveryRequests.set(requestId, request);
+    }
+    return request;
+  }
+
+  async updateDeliveryStatus(requestId: string, status: string): Promise<DeliveryRequest | undefined> {
+    const request = this.deliveryRequests.get(requestId);
+    if (request) {
+      request.status = status;
+      if (status === 'delivered') {
+        request.deliveredAt = new Date();
+      }
+      this.deliveryRequests.set(requestId, request);
+    }
+    return request;
+  }
+
+  async rateDelivery(requestId: string, rating: number, review?: string): Promise<DeliveryRequest | undefined> {
+    const request = this.deliveryRequests.get(requestId);
+    if (request) {
+      request.customerRating = rating;
+      request.customerReview = review || null;
+      this.deliveryRequests.set(requestId, request);
+    }
+    return request;
+  }
+
+  // --- Delivery Earnings (MemStorage) ---
+  async createDeliveryEarnings(insertEarnings: InsertDeliveryEarnings): Promise<DeliveryEarnings> {
+    const id = randomUUID();
+    const earnings: DeliveryEarnings = {
+      id,
+      deliveryPersonId: insertEarnings.deliveryPersonId,
+      deliveryRequestId: insertEarnings.deliveryRequestId,
+      baseEarning: insertEarnings.baseEarning,
+      bonus: insertEarnings.bonus || '0',
+      totalEarning: insertEarnings.totalEarning,
+      createdAt: new Date(),
+    };
+    this.deliveryEarnings.set(id, earnings);
+    return earnings;
+  }
+
+  async getDeliveryPersonEarnings(deliveryPersonId: string): Promise<DeliveryEarnings[]> {
+    return Array.from(this.deliveryEarnings.values()).filter(e => e.deliveryPersonId === deliveryPersonId);
+  }
+
+  async getTotalEarnings(deliveryPersonId: string): Promise<number> {
+    const earnings = await this.getDeliveryPersonEarnings(deliveryPersonId);
+    return earnings.reduce((sum, e) => sum + parseFloat(e.totalEarning), 0);
   }
 }
 
